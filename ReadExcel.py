@@ -4,6 +4,8 @@ import time
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
+from sympy import true, false
+
 from ExcelUtils import col_index, config
 
 
@@ -44,7 +46,7 @@ def append_columns(df_src: DataFrame):
         "Nummer": pd.to_numeric(df_src.iloc[:, col_index("C")], errors="coerce").astype(pd.Int64Dtype()),
         "Nummer_Bezeichnung": (df_src.iloc[:, col_index("D")]).astype(pd.StringDtype()),
         "Gruppe_Nummer": pd.to_numeric(df_src.iloc[:, col_index("E")], errors="coerce").astype(pd.Int64Dtype()),
-        "ung_Nummer_Chbx": (df_src.iloc[:, col_index("F")]).astype(pd.StringDtype()),
+        "ung_Nummer_Chbx": (df_src.iloc[:, col_index("F")].astype(pd.StringDtype()).apply(bool_str)),
         "ung_Nummer": pd.to_numeric(df_src.iloc[:, col_index("G")], errors="coerce").astype(pd.Int64Dtype()),
 
         # P-Nr.
@@ -184,36 +186,7 @@ def append_columns(df_src: DataFrame):
     return df
 
 
-# Dataframe ausgeben
-# print(df_filtered[["Summe Beta-Gamma", "Summe Alpha", "Verhältnis Beta-Gamma/Alpha", "∑ges-α / ∑ges-B"]].to_string(index=false))
-
-
-'''
-print(df_filtered[[
-    "Masseinheit",
-    "Co60-Wert",
-    "Co60-Faktor",
-    "Am241-Faktor",
-    "Am-241(RC)-Faktor",
-    "Ag110m+-Faktor",
-    "Cm-243/244-Faktor",
-    "Pu-238-Faktor",
-    "Pu-239/240-Faktor",
-    "Sb125+-Faktor",
-    "Ni-63-Faktor",
-    "Cs137+-Faktor",
-    "Eu154-Faktor",
-    "Sr-90-Faktor",
-    "Fe-55-Faktor",
-    "Ag108m+-Faktor",
-    "U-233/234-Faktor",
-    "U-238-Faktor",
-]].to_string(index=False))
-'''
-
-'''
-# Maximale Faktoren mit Nukliden ausgeben
-print("\nMaximale Faktoren")
-for key, value in nuclide_max.items():
-    print(f"{key}: {value}")
-'''
+def bool_str(value) -> str:
+    if pd.isna(value) or value == "":
+        return "false"
+    return "true"
