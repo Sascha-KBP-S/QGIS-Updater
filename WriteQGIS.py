@@ -1,8 +1,13 @@
 # Imports
+from os.path import exists
+
 import pandas as pd
 import geopandas as gpd
 import fiona
+import pathlib
+import shutil
 from fiona import Env
+from datetime import datetime
 
 
 # GeoPackage einlesen
@@ -62,8 +67,8 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
             print(f"Gruppe {grp_number} nicht in PN_Gruppe gefunden.")
 
     # Schreiben
+    safe_copy(filepath)
     gdf_group.to_file(filepath, driver="GPKG", layer="PN_Gruppe", engine="fiona")
-
     write_table_to_gpkg(gdf_prt, filepath, "PN_Protokoll")
 
 
@@ -87,10 +92,9 @@ def write_table_to_gpkg(df: pd.DataFrame, filepath: str, layer_name: str):
             return "string"
 
     schema = {
-    "geometry": "None",
-    "properties": {col: map_dtype(df[col].dtype) for col in df.columns}
-}
-
+        "geometry": "None",
+        "properties": {col: map_dtype(df[col].dtype) for col in df.columns}
+    }
 
     # Werte vor dem Schreiben kompatibel machen
     def normalize_value(val):
@@ -125,3 +129,19 @@ def write_table_to_gpkg(df: pd.DataFrame, filepath: str, layer_name: str):
                     "geometry": None,
                     "properties": {col: normalize_value(row[col]) for col in df.columns}
                 })
+
+
+def safe_copy(filepath):
+    p = pathlib.Path(filepath)
+    d = p.parent
+    today = datetime.today().strftime("%Y%m%d")
+    dest_path = f"{d}/{today}_pn_protokoll.gpkg"
+
+    if exists(dest_path):
+        i = 1
+        dest_path = f"{d}/{today}_pn_protokoll_V{i}.gpkg"
+        while exists(dest_path):
+            i += 1
+            dest_path = f"{d}/{today}_pn_protokoll_V{i}.gpkg"
+
+    shutil.copyfile(filepath, dest_path)
