@@ -1,5 +1,7 @@
 # Imports
 import time
+import json
+import os
 
 import numpy as np
 import pandas as pd
@@ -7,6 +9,16 @@ from pandas import DataFrame
 from sympy import true, false
 
 from ExcelUtils import col_index, config
+
+
+# Value Maps laden
+def load_value_maps(json_path="value_maps.json"):
+    """Lädt Value Map Definitionen aus einer JSON-Datei."""
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
 
 
 # PN-Protokoll einlesen, dabei die ersten 4 Zeilen überspringen
@@ -27,7 +39,7 @@ def return_probes(df: DataFrame):
                 seen.add(num)
                 probes.append(num)
 
-    return np.array(probes, dtype=int)
+    return probes
 
 
 # Pandas Anzeigeoptionen definieren
@@ -39,6 +51,11 @@ def init_reading():
 
 # Spalten des PN-Protokolls in neuen, gefilterten Dataframe einlesen: (Benennung wie in QGIS)
 def append_columns(df_src: DataFrame):
+    # Lade Value Maps
+    value_maps = load_value_maps("value_maps.json")
+    prt_maps = value_maps.get("PN_Protokoll", {})
+    grp_maps = value_maps.get("PN_Gruppe", {})
+
     df = pd.DataFrame({
         # Probennummer
         "Auftrags_Nummer": pd.to_numeric(df_src.iloc[:, col_index("A")], errors="coerce").astype(pd.Int64Dtype()),
@@ -101,7 +118,7 @@ def append_columns(df_src: DataFrame):
         "Bauteil_nutzungsart": df_src.iloc[:, col_index("AJ")].fillna("").astype(str),
         "Oberflaechenbeschaffenheit": df_src.iloc[:, col_index("AK")].fillna("").astype(str),
         "Verdacht": df_src.iloc[:, col_index("AL")].fillna("").astype(str),
-        "Besonderheiten_PN_Stelle": df_src.iloc[:, col_index("AM")].fillna("").astype(str),
+        "Besonderheiten_Freitext": df_src.iloc[:, col_index("AM")].fillna("").astype(str),
 
         # Foto-Nr.
         "Foto1": df_src.iloc[:, col_index("AN")].fillna("").astype(str),  # übersicht
@@ -136,7 +153,7 @@ def append_columns(df_src: DataFrame):
         "Ma_Zustand": df_src.iloc[:, col_index("BK")].fillna("").astype(str),
         "Ma_Beschaffenheit": df_src.iloc[:, col_index("BL")].fillna("").astype(str),
         "PN_Verlust": pd.to_numeric(df_src.iloc[:, col_index("BM")], errors="coerce").astype(float),
-        "Zusatzinformationen": df_src.iloc[:, col_index("BN")].fillna("").astype(str),
+        "Zi_Freitext": df_src.iloc[:, col_index("BN")].fillna("").astype(str),
 
         # Feststoffprobenahme
         "FSPN_dn": pd.to_numeric(df_src.iloc[:, col_index("BO")], errors="coerce").astype(float),
@@ -197,5 +214,4 @@ def bool_to_float(value) -> float:
     if pd.isna(value) or value == "" or value == False or value == "false" or value == "False" or value == 0:
         return 0.0
     return 1.0
-
 

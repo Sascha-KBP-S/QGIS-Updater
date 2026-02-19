@@ -1,0 +1,248 @@
+{
+  "PN_Protokoll": {
+    "ung_Nummer_Chbx": {
+      "False": 0,
+      "True": 1
+    },
+    "Probentyp": {
+      "Feststoff": 0,
+      "Flüssigkeit": 1,
+      "Wischprobe": 2,
+      "Kernbohrung": 3
+    },
+    "Materialart": {
+      "(keine Auswahl)": 0,
+      "Aktivkohle": 1,
+      "Aluminium": 2,
+      "Austenit": 3,
+      "Beton": 4,
+      "Dekontbeschichtung": 5,
+      "Erde": 6,
+      "Farbe, Lack": 7,
+      "Ferrit": 8,
+      "Glas": 9,
+      "Gummi": 10,
+      "Holz": 11,
+      "Ionenaustauscher": 12,
+      "Isoliermaterial (nur mineralisch)": 13,
+      "Kalksandstein": 14,
+      "Keramik": 15,
+      "KLINGERSIL® C-4400, Aramidfasern, gebunden mit NBR": 16,
+      "Kabel": 17,
+      "Kunststoff": 18,
+      "Kupfer": 19,
+      "Messing": 20,
+      "mikroporöser Dämmstoff": 21,
+      "Materialmix": 22,
+      "Nichteisenmetalle": 23,
+      "Öl, Fett": 24,
+      "Pflanzen, Papier, Pappe": 25,
+      "Putz": 26,
+      "PVC": 27,
+      "Rost, Korrosionsprodukte": 28,
+      "Sand": 29,
+      "Scales": 30,
+      "Schmierfett": 31,
+      "Schmutz, Ablagerungen": 32,
+      "Schwerbeton": 33,
+      "Sediment": 34,
+      "Silikon": 35,
+      "Staub": 36,
+      "Styropor®": 37,
+      "Textilstücken": 38,
+      "Verdampferkonzentrat": 39,
+      "verzinktes Stahlblech": 40,
+      "Wasser": 41,
+      "Wasser mit Bodensatz": 42,
+      "Schlamm": 43,
+      "Ziegel (Mauerwerk)": 44,
+      "Zinkblech": 45
+    },
+    "Bauteil_nutzungsart": {
+      "(keine Auswahl)": 0,
+      "Wasser, sauber": 1,
+      "Wasser, kontaminiert": 2,
+      "Abwasser, konventionell": 3,
+      "Abwasser, kontaminiert": 4,
+      "Dampf": 5,
+      "Heizung": 6,
+      "Elektrik": 7,
+      "Zuluft": 8,
+      "Abluft": 9,
+      "unbekannt": 10
+    },
+    "Oberflaechenbeschaffenheit": {
+      "glatt": 0,
+      "leicht rau": 1,
+      "rau": 2,
+      "rau & korrodiert": 3,
+      "<NULL>": 4
+    },
+    "Verdacht": {
+      "(keine Auswahl)": 0,
+      "Aktivierung": 1,
+      "Kontamination innen": 2,
+      "Kontamination außen": 3,
+      "Aktiv. & Kontam. innen": 4,
+      "Aktiv. & Kontam. außen": 5
+    },
+    "Besonderheiten_PN_Stelle": {
+      "keine": 0,
+      "Verfärbung, Flecken": 1,
+      "Korrosion": 2,
+      "Riss in Beschichtung": 3,
+      "lose Beschichtung": 4,
+      "Beschichtung unvollständig erneuert": 5,
+      "PN-Stelle schwer zugänglich": 6
+    },
+    "PN_Verfahren": {
+      "(keine Auswahl)": 0,
+      "Direktentnahme": 1,
+      "Kratzen": 2,
+      "Kratzen & Fräsen": 3,
+      "Schleifen, Feilen": 4,
+      "Fräsen": 5,
+      "Schneiden": 6,
+      "Sägen": 7,
+      "Schlagen, Meißeln (Hammer)": 8,
+      "Meißeln (elektr. Bohrhammer)": 9,
+      "Stockern": 10,
+      "Bohren, Späne": 11,
+      "Bohren, Mehl - Vollbohrer": 12,
+      "Bohren, Mehl - Hohlbohrer": 13,
+      "Kernbohren": 14,
+      "Wischen": 15
+    },
+    "PN_Geraet": {
+      "(keine Auswahl)": 0,
+      "Wischtestblättchen": 1,
+      "Schaufel/Spachtel": 2,
+      "Flachschaber": 3,
+      "Dreiecksschaber": 4,
+      "Feile": 5,
+      "Blechschere": 6,
+      "Seitenschneider": 7,
+      "Bolzenschneider": 8,
+      "Schraubendreher, Imbusschlüssel": 9,
+      "Messer, Cuttermesser": 10,
+      "Maul-, Ringschlüssel": 11,
+      "Kombizange": 12,
+      "Stemmeisen": 13,
+      "Hammer & Meißel": 14,
+      "Handsäge": 15,
+      "Akkuschrauber": 16,
+      "Akkuschrauber + Frässtift": 17,
+      "Oszillierer": 18,
+      "Säbelsäge": 19,
+      "Standbohrmaschine": 20,
+      "Magnetbohrmaschine": 21,
+      "Bohrmaschine ohne Absaugung": 22,
+      "Bohrmaschine mit Vollbohrer und Probenabsaugung": 23,
+      "Bohrmaschine mit Hohlbohrer und Probenabsaugung": 24,
+      "Kombihammer mit Meißel": 25,
+      "Kombihammer mit Stockerwerkzeug": 26,
+      "Kernbohrmaschine": 27,
+      "lose Entnahme": 28
+    },
+    "Ma_Zustand": {
+      "trocken": 0,
+      "feucht": 1,
+      "nass": 2,
+      "<NULL>": 3
+    },
+    "Ma_Beschaffenheit": {
+      "(keine Auswahl)": 0,
+      "Pulver": 1,
+      "Späne": 2,
+      "Stücke (fein)": 3,
+      "Stücke (grob)": 4,
+      "Flüssigkeit (wässrig)": 5,
+      "Flüssigkeit (oelig)": 6,
+      "Erde/Schlamm": 7
+    },
+    "Zusatzinformationen": {
+      "(keine Auswahl)": 0,
+      "-": 1,
+      "Probenmaterial nicht vollständig aufgefangen": 2,
+      "Material wurde stark erwärmt": 3,
+      "Material wurde leicht erwärmt": 4,
+      "Probe war sehr schwer zu gewinnen, Probendose nicht vollständig gefüllt": 5,
+      "Probenahmestelle vor PN vereist": 6,
+      "Probenahmestelle verlegt": 7,
+      "Querkontamination möglich": 8,
+      "Bohrkern zerbrochen": 9,
+      "teilweise Bohrkernverlust": 10,
+      "Verunreinigungen durch Stücke der Schleifplatte": 11
+    },
+    "Bemerkungen": {
+      "(keine Auswahl)": 0,
+      "Probe geteilt, in folgende Teilproben:": 1,
+      "Probe durch Teilung gewonnen aus Probe:": 2
+    },
+    "WP_Material": {
+      "Textil (trocken)": 0,
+      "Textil (Wasser)": 1,
+      "Textil (Alkohol)": 2,
+      "Papier": 3,
+      "3M_Scotch": 4,
+      "<NULL>": 5
+    },
+    "AP_behaelter": {
+      "(keine Auswahl)": 0,
+      "47 D": 1,
+      "55 D": 2,
+      "70 D": 3,
+      "0,5 l HüDo": 4,
+      "1 l HüDo": 5,
+      "0,1 l Kautex": 6,
+      "0,5 l Kautex": 7,
+      "1 l Kautex": 8,
+      "Schlauchfolie": 9
+    }
+  },
+  "PN_Gruppe": {
+    "pn_zweck": {
+      "(keine Auswahl)": 0,
+      "PN-Zweck": 1,
+      "Nuklidvektoren": 2,
+      "Aktivitätskataster": 3,
+      "konventionelle Schadstoffe": 4,
+      "Freigabe": 5,
+      "Abfalldeklaration": 6
+    },
+    "Beprobungsflaeche": {
+      "Bauteil (innen)": 0,
+      "Bauteil (außen)": 1,
+      "Rohrinnenseite": 2,
+      "Rohraußenseite": 3,
+      "Fußboden": 4,
+      "Wand": 5,
+      "Decke": 6,
+      "Dilatationsfuge": 7
+    },
+    "Mess_Typ_Stelle": {
+      "6150_AD_6": 0,
+      "<NULL>": 1
+    },
+    "Messabstand": {
+      "Kontakt": 0,
+      "1": 1,
+      "10": 2,
+      "50": 3,
+      "100": 4,
+      "<NULL>": 5
+    },
+    "Mess_Typ_DM": {
+      "LB124": 0,
+      "LB124_300": 1,
+      "CoMo_170": 2,
+      "<NULL>": 3
+    },
+    "PN_team": {
+      "T1": 0,
+      "T2": 1,
+      "<NULL>": 2
+    }
+  }
+}
+
