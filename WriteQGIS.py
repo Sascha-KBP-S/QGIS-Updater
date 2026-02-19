@@ -152,8 +152,20 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list, debug=True, debug_
     if debug and not spatialite_ok:
         print("[DEBUG] Spatialite-Erweiterung konnte nicht geladen werden. UPDATEs auf Geo-Tabellen koennen fehlschlagen (ST_IsEmpty).")
 
-    # Lade Value Maps
-    value_maps = load_value_maps("value_maps.json")
+    # Lade Value Maps aus der QGIS-Projektverwaltung
+    try:
+        with open("resources/value_maps_from_qgis.json", "r", encoding="utf-8") as f:
+            value_maps = json.load(f)
+        if debug:
+            print("[DEBUG] Value Maps aus QGIS-Projekt geladen.")
+    except FileNotFoundError:
+        if debug:
+            print("[WARNING] value_maps_from_qgis.json nicht gefunden. Verwende Fallback value_maps.json")
+        value_maps = load_value_maps("value_maps.json")
+    except json.JSONDecodeError as e:
+        if debug:
+            print(f"[WARNING] Fehler beim Lesen von value_maps_from_qgis.json: {e}")
+        value_maps = load_value_maps("value_maps.json")
 
     # Debug-Zaehler
     dbg_prt = {"nan_skips": 0, "conv_errors": 0, "empty_updates": 0, "zero_rowcount": 0}
