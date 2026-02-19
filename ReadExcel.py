@@ -44,81 +44,81 @@ def append_columns(df_src: DataFrame):
         "Auftrags_Nummer": pd.to_numeric(df_src.iloc[:, col_index("A")], errors="coerce").astype(pd.Int64Dtype()),
         "Serien_Nummer": pd.to_numeric(df_src.iloc[:, col_index("B")], errors="coerce").astype(pd.Int64Dtype()),
         "Nummer": pd.to_numeric(df_src.iloc[:, col_index("C")], errors="coerce").astype(pd.Int64Dtype()),
-        "Nummer_Bezeichnung": (df_src.iloc[:, col_index("D")]).astype(pd.StringDtype()),
+        "Nummer_Bezeichnung": df_src.iloc[:, col_index("D")].fillna("").astype(str),
         "Gruppe_Nummer": pd.to_numeric(df_src.iloc[:, col_index("E")], errors="coerce").astype(pd.Int64Dtype()),
-        "ung_Nummer_Chbx": (df_src.iloc[:, col_index("F")].astype(pd.StringDtype()).apply(bool_str)),
-        "ung_Nummer": pd.to_numeric(df_src.iloc[:, col_index("G")], errors="coerce").astype(pd.Int64Dtype()),
+        "ung_Nummer_Chbx": df_src.iloc[:, col_index("F")].apply(bool_to_float),
+        "ung_Nummer": pd.to_numeric(df_src.iloc[:, col_index("G")], errors="coerce").astype(float),
 
         # P-Nr.
         # -> nicht gefunden
 
         # Datum
-        "Datum": (df_src.iloc[:, col_index("I")]).astype(pd.StringDtype()),
+        "Datum": pd.to_datetime(df_src.iloc[:, col_index("I")], errors="coerce"),
 
         # Uhrzeit
-        "Datum_Zeit": (df_src.iloc[:, col_index("J")]).astype(pd.StringDtype()),
+        "Datum_Zeit": pd.to_datetime(df_src.iloc[:, col_index("J")], errors="coerce"),
 
         # Probenahmezweck
-        "pn_zweck": (df_src.iloc[:, col_index("K")]).astype(pd.StringDtype()),
+        "pn_zweck": df_src.iloc[:, col_index("K")].fillna("").astype(str),
 
         # Auftrag
-        "Auftrag": (df_src.iloc[:, col_index("L")]).astype(pd.StringDtype()),
+        "Auftrag": df_src.iloc[:, col_index("L")].fillna("").astype(str),
 
         # Auftraggeber
-        "Auftraggeber": (df_src.iloc[:, col_index("M")]).astype(pd.StringDtype()),
+        "Auftraggeber": df_src.iloc[:, col_index("M")].fillna("").astype(str),
 
         # Projektleiter
-        "Projektleiter": (df_src.iloc[:, col_index("N")]).astype(pd.StringDtype()),
+        "Projektleiter": df_src.iloc[:, col_index("N")].fillna("").astype(str),
 
         # Probentyp
-        "Probentyp": (df_src.iloc[:, col_index("O")]).astype(pd.StringDtype()),
+        "Probentyp": df_src.iloc[:, col_index("O")].fillna("").astype(str),
 
         # Materialart
-        "Materialart": (df_src.iloc[:, col_index("P")]).astype(pd.StringDtype()),
+        "Materialart": df_src.iloc[:, col_index("P")].fillna("").astype(str),
 
         # Lage der Probenahmestelle
-        "Gebaeude": (df_src.iloc[:, col_index("Q")]).astype(pd.StringDtype()),
-        "Raum_Herkunft": (df_src.iloc[:, col_index("R")]).astype(pd.StringDtype()),
-        "Raum_aktuell": (df_src.iloc[:, col_index("S")]).astype(pd.StringDtype()),
+        "Gebaeude": df_src.iloc[:, col_index("Q")].fillna("").astype(str),
+        "Raum_Herkunft": df_src.iloc[:, col_index("R")].fillna("").astype(str),
+        "Raum_aktuell": df_src.iloc[:, col_index("S")].fillna("").astype(str),
         "x_Raum": pd.to_numeric(df_src.iloc[:, col_index("T")], errors="coerce").astype(float),
         "y_Raum": pd.to_numeric(df_src.iloc[:, col_index("U")], errors="coerce").astype(float),
-        "Hoehe": (df_src.iloc[:, col_index("V")]).astype(pd.StringDtype()),
-        "Geschoss": (df_src.iloc[:, col_index("W")]).astype(pd.StringDtype()),
+        "Hoehe": pd.to_numeric(df_src.iloc[:, col_index("V")], errors="coerce").astype(float),
+        "Geschoss": df_src.iloc[:, col_index("W")].fillna("").astype(str),
         "x": pd.to_numeric(df_src.iloc[:, col_index("X")], errors="coerce").astype(float),
         "y": pd.to_numeric(df_src.iloc[:, col_index("Y")], errors="coerce").astype(float),
         "Hoehe_absolut": pd.to_numeric(df_src.iloc[:, col_index("Z")], errors="coerce").astype(float),
-        "Lagebeschreibung": (df_src.iloc[:, col_index("AA")]).astype(pd.StringDtype()),
+        "Lagebeschreibung": df_src.iloc[:, col_index("AA")].fillna("").astype(str),
 
         # Bauteil
-        "Beprobungsflaeche": (df_src.iloc[:, col_index("AB")]).astype(pd.StringDtype()),
-        "System": (df_src.iloc[:, col_index("AC")]).astype(pd.StringDtype()),
-        "Anlagenkennzeichnung": (df_src.iloc[:, col_index("AD")]).astype(pd.StringDtype()),
-        "Beschreibung": (df_src.iloc[:, col_index("AE")]).astype(pd.StringDtype()),
+        "Beprobungsflaeche": df_src.iloc[:, col_index("AB")].fillna("").astype(str),
+        "System": df_src.iloc[:, col_index("AC")].fillna("").astype(str),
+        "Anlagenkennzeichnung": df_src.iloc[:, col_index("AD")].fillna("").astype(str),
+        "Beschreibung": df_src.iloc[:, col_index("AE")].fillna("").astype(str),
         "Bauteil_laenge": pd.to_numeric(df_src.iloc[:, col_index("AF")], errors="coerce").astype(float),
         "Bauteil_breite": pd.to_numeric(df_src.iloc[:, col_index("AG")], errors="coerce").astype(float),
         "Bauteil_hoehe": pd.to_numeric(df_src.iloc[:, col_index("AH")], errors="coerce").astype(float),
         "Bauteil_dicke": pd.to_numeric(df_src.iloc[:, col_index("AI")], errors="coerce").astype(float),
-        "Bauteil_nutzungsart": (df_src.iloc[:, col_index("AJ")]).astype(pd.StringDtype()),
-        "Oberflaechenbeschaffenheit": (df_src.iloc[:, col_index("AK")]).astype(pd.StringDtype()),
-        "Verdacht": (df_src.iloc[:, col_index("AL")]).astype(pd.StringDtype()),
-        "Besonderheiten_PN_Stelle": (df_src.iloc[:, col_index("AM")]).astype(pd.StringDtype()),
+        "Bauteil_nutzungsart": df_src.iloc[:, col_index("AJ")].fillna("").astype(str),
+        "Oberflaechenbeschaffenheit": df_src.iloc[:, col_index("AK")].fillna("").astype(str),
+        "Verdacht": df_src.iloc[:, col_index("AL")].fillna("").astype(str),
+        "Besonderheiten_PN_Stelle": df_src.iloc[:, col_index("AM")].fillna("").astype(str),
 
         # Foto-Nr.
-        "Foto1": (df_src.iloc[:, col_index("AN")]).astype(pd.StringDtype()),  # übersicht
-        "Foto2": (df_src.iloc[:, col_index("AO")]).astype(pd.StringDtype()),  # Detail
-        "Foto3": (df_src.iloc[:, col_index("AP")]).astype(pd.StringDtype()),  # Anlagen-kennzeichen
-        "Foto4": (df_src.iloc[:, col_index("AQ")]).astype(pd.StringDtype()),  # Detail
-        "Foto5": (df_src.iloc[:, col_index("AR")]).astype(pd.StringDtype()),  # Probenbehälter offen
-        "Foto6": (df_src.iloc[:, col_index("AS")]).astype(pd.StringDtype()),  # Probenbehälter hochkant
+        "Foto1": df_src.iloc[:, col_index("AN")].fillna("").astype(str),  # übersicht
+        "Foto2": df_src.iloc[:, col_index("AO")].fillna("").astype(str),  # Detail
+        "Foto3": df_src.iloc[:, col_index("AP")].fillna("").astype(str),  # Anlagen-kennzeichen
+        "Foto4": df_src.iloc[:, col_index("AQ")].fillna("").astype(str),  # Detail
+        "Foto5": df_src.iloc[:, col_index("AR")].fillna("").astype(str),  # Probenbehälter offen
+        "Foto6": df_src.iloc[:, col_index("AS")].fillna("").astype(str),  # Probenbehälter hochkant
 
         # Ortsdosisleistung an der PN-Stelle
-        "Mess_Typ_Stelle": (df_src.iloc[:, col_index("AT")]).astype(pd.StringDtype()),
+        "Mess_Typ_Stelle": df_src.iloc[:, col_index("AT")].fillna("").astype(str),
         "Messwert": pd.to_numeric(df_src.iloc[:, col_index("AU")], errors="coerce").astype(float),
-        "Messabstand": pd.to_numeric(df_src.iloc[:, col_index("AV")], errors="coerce").astype(float),
+        "Messabstand": df_src.iloc[:, col_index("AV")].fillna("").astype(str),
 
         # Oberflächenkontamination Direktmessung
-        "Mess_Typ_DM": (df_src.iloc[:, col_index("AW")]).astype(pd.StringDtype()),
-        "Geraetnr_DM": (df_src.iloc[:, col_index("AX")]).astype(pd.StringDtype()),
+        "Mess_Typ_DM": df_src.iloc[:, col_index("AW")].fillna("").astype(str),
+        "Geraetnr_DM": df_src.iloc[:, col_index("AX")].fillna("").astype(str),
         "Ni_Alpha": pd.to_numeric(df_src.iloc[:, col_index("AY")], errors="coerce").astype(float),
         "Ni_Beta": pd.to_numeric(df_src.iloc[:, col_index("AZ")], errors="coerce").astype(float),
         "vPN_Alpha": pd.to_numeric(df_src.iloc[:, col_index("BA")], errors="coerce").astype(float),
@@ -127,26 +127,26 @@ def append_columns(df_src: DataFrame):
         "nPN_Beta": pd.to_numeric(df_src.iloc[:, col_index("BD")], errors="coerce").astype(float),
 
         # Probenahme allgemeine Angaben
-        "Material_spez": (df_src.iloc[:, col_index("BE")]).astype(pd.StringDtype()),
-        "PN_Verfahren": (df_src.iloc[:, col_index("BF")]).astype(pd.StringDtype()),
-        "PN_Geraet": (df_src.iloc[:, col_index("BG")]).astype(pd.StringDtype()),
+        "Material_spez": df_src.iloc[:, col_index("BE")].fillna("").astype(str),
+        "PN_Verfahren": df_src.iloc[:, col_index("BF")].fillna("").astype(str),
+        "PN_Geraet": df_src.iloc[:, col_index("BG")].fillna("").astype(str),
         "PN_laenge": pd.to_numeric(df_src.iloc[:, col_index("BH")], errors="coerce").astype(float),
         "PN_breite": pd.to_numeric(df_src.iloc[:, col_index("BI")], errors="coerce").astype(float),
         "PN_flaeche": pd.to_numeric(df_src.iloc[:, col_index("BJ")], errors="coerce").astype(float),
-        "Ma_Zustand": (df_src.iloc[:, col_index("BK")]).astype(pd.StringDtype()),
-        "Ma_Beschaffenheit": (df_src.iloc[:, col_index("BL")]).astype(pd.StringDtype()),
+        "Ma_Zustand": df_src.iloc[:, col_index("BK")].fillna("").astype(str),
+        "Ma_Beschaffenheit": df_src.iloc[:, col_index("BL")].fillna("").astype(str),
         "PN_Verlust": pd.to_numeric(df_src.iloc[:, col_index("BM")], errors="coerce").astype(float),
-        "Zusatzinformationen": (df_src.iloc[:, col_index("BN")]).astype(pd.StringDtype()),
+        "Zusatzinformationen": df_src.iloc[:, col_index("BN")].fillna("").astype(str),
 
         # Feststoffprobenahme
         "FSPN_dn": pd.to_numeric(df_src.iloc[:, col_index("BO")], errors="coerce").astype(float),
         "FSPN_tiefe_von": pd.to_numeric(df_src.iloc[:, col_index("BP")], errors="coerce").astype(float),
         "FSPN_tiefe_bis": pd.to_numeric(df_src.iloc[:, col_index("BR")], errors="coerce").astype(float),
-        "Probe_EP_MP": (df_src.iloc[:, col_index("BS")]).astype(pd.StringDtype()),
+        "Probe_EP_MP": df_src.iloc[:, col_index("BS")].fillna("").astype(str),
         "FSPN_Anzahl": pd.to_numeric(df_src.iloc[:, col_index("BT")], errors="coerce").astype(pd.Int64Dtype()),
 
         # Wischprobenahme
-        "WP_Material": (df_src.iloc[:, col_index("BU")]).astype(pd.StringDtype()),
+        "WP_Material": df_src.iloc[:, col_index("BU")].fillna("").astype(str),
         "WP_dn": pd.to_numeric(df_src.iloc[:, col_index("BV")], errors="coerce").astype(float),
         "WP_An_Fl": pd.to_numeric(df_src.iloc[:, col_index("BW")], errors="coerce").astype(pd.Int64Dtype()),
         "WP_Anzahl": pd.to_numeric(df_src.iloc[:, col_index("BX")], errors="coerce").astype(pd.Int64Dtype()),
@@ -155,11 +155,11 @@ def append_columns(df_src: DataFrame):
         "KB_dn": pd.to_numeric(df_src.iloc[:, col_index("BY")], errors="coerce").astype(float),
         "KB_tiefe_von": pd.to_numeric(df_src.iloc[:, col_index("BZ")], errors="coerce").astype(float),
         "KB_tiefe_bis": pd.to_numeric(df_src.iloc[:, col_index("CA")], errors="coerce").astype(float),
-        "KB_art": (df_src.iloc[:, col_index("CB")]).astype(pd.StringDtype()),
-        "KB_beschreibung": (df_src.iloc[:, col_index("CC")]).astype(pd.StringDtype()),
+        "KB_art": df_src.iloc[:, col_index("CB")].fillna("").astype(str),
+        "KB_beschreibung": df_src.iloc[:, col_index("CC")].fillna("").astype(str),
 
         # Angaben zur Probe
-        "AP_behaelter": (df_src.iloc[:, col_index("CD")]).astype(pd.StringDtype()),
+        "AP_behaelter": df_src.iloc[:, col_index("CD")].fillna("").astype(str),
         "AP_masse": pd.to_numeric(df_src.iloc[:, col_index("CE")], errors="coerce").astype(float),
         "AP_hochkant": pd.to_numeric(df_src.iloc[:, col_index("CF")], errors="coerce").astype(float),
         "AP_fuellgrad": pd.to_numeric(df_src.iloc[:, col_index("CG")], errors="coerce").astype(float),
@@ -171,16 +171,16 @@ def append_columns(df_src: DataFrame):
         "AP_ortsdosis": pd.to_numeric(df_src.iloc[:, col_index("CM")], errors="coerce").astype(float),
 
         # Bemerkungen
-        "Bm_Freitxt": (df_src.iloc[:, col_index("CN")]).astype(pd.StringDtype()),
+        "Bm_Freitxt": df_src.iloc[:, col_index("CN")].fillna("").astype(str),
 
         # Probenehmer
-        "PN_team": (df_src.iloc[:, col_index("CO")]).astype(pd.StringDtype()),
-        "pn_nehmer1": (df_src.iloc[:, col_index("CP")]).astype(pd.StringDtype()),
-        "pn_nehmer2": (df_src.iloc[:, col_index("CQ")]).astype(pd.StringDtype()),
+        "PN_team": df_src.iloc[:, col_index("CO")].fillna("").astype(str),
+        "pn_nehmer1": df_src.iloc[:, col_index("CP")].fillna("").astype(str),
+        "pn_nehmer2": df_src.iloc[:, col_index("CQ")].fillna("").astype(str),
 
         # Probenübergabe
-        "pue_empfaenger": (df_src.iloc[:, col_index("CR")]).astype(pd.StringDtype()),
-        "pue_date": (df_src.iloc[:, col_index("CS")]).astype(pd.StringDtype()),
+        "pue_empfaenger": df_src.iloc[:, col_index("CR")].fillna("").astype(str),
+        "pue_date": pd.to_datetime(df_src.iloc[:, col_index("CS")], errors="coerce"),
 
     })
     return df
@@ -190,3 +190,12 @@ def bool_str(value) -> str:
     if pd.isna(value) or value == "":
         return "false"
     return "true"
+
+
+def bool_to_float(value) -> float:
+    """Konvertiert Boolean/String zu float (1.0 = true, 0.0 = false) für GPKG-Kompatibilität"""
+    if pd.isna(value) or value == "" or value == False or value == "false" or value == "False" or value == 0:
+        return 0.0
+    return 1.0
+
+

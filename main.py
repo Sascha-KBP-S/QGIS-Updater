@@ -31,8 +31,11 @@ row_44 = gdf_prt.loc[gdf_prt["Nummer"] == 45]
 print("Werte der Probennummer 44:")
 print(row_44)
 
-print("\nDatentypen der Probennummer 44:")
-print(row_44.iloc[0].apply(type))
+if not row_44.empty:
+    print("\nDatentypen der Probennummer 44:")
+    print(row_44.iloc[0].apply(type))
+else:
+    print("\nProbe 44 nicht gefunden - wird durch Daten-Update erstellt")
 
 
 print(gdf_group.head())

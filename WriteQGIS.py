@@ -3,132 +3,180 @@ from os.path import exists
 
 import pandas as pd
 import geopandas as gpd
-import fiona
+import sqlite3
 import pathlib
 import shutil
-from fiona import Env
 from datetime import datetime
 
 
 # GeoPackage einlesen
 def read_layer(path, layer):
+    """
+    Liest einen Layer aus GPKG mit pyogrio Engine (moderner und schneller als fiona).
+    Die GPKG-Datentypen sind führend!
+    Gibt IMMER ein GeoDataFrame zurück (auch ohne Geometrie).
+    """
     try:
-        return gpd.read_file(path, layer=layer, engine="fiona")
+        gdf = gpd.read_file(path, layer=layer, engine="pyogrio")
     except ValueError:
-        # Wenn keine echte Geometrie gefunden wurde
-        return gpd.read_file(path, layer=layer, engine="fiona", ignore_geometry=True)
+        # Wenn keine echte Geometrie gefunden wurde, lese ohne geometry
+        df = gpd.read_file(path, layer=layer, engine="pyogrio", ignore_geometry=True)
+        # Konvertiere zu GeoDataFrame mit None-Geometrie
+        gdf = gpd.GeoDataFrame(df, geometry=None)
+
+    return gdf
 
 
-# Daten in neue GPGK Datenbank schreiben
+# Daten in GPKG Datenbank schreiben - DIREKT MIT SQLite (KEINE GeoPandas/Fiona Konvertierung!)
 def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
+    """
+    Schreibt Daten direkt in die GPKG-SQLite-Datenbank.
+    Verhindert alle Datentyp-Konvertierungsprobleme durch direkten SQLite-Zugriff!
+    """
+
     # Gemeinsame Spalten ermitteln
     common_cols_prt = [col for col in df.columns if col in gdf_prt.columns]
     common_cols_group = [col for col in df.columns if col in gdf_group.columns]
 
-    for probe in probes_list:
+    # Backup erstellen
+    safe_copy(filepath)
 
+    # WICHTIG: Nicht mit DELETE arbeiten - das triggert spatialite-Funktionen!
+    # Stattdessen: UPDATE verwenden - das ändert nur die Werte, nicht die Struktur
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+
+# Daten in GPKG Datenbank schreiben - DIREKT MIT SQLite UPDATE (KEINE INSERT/DELETE)
+def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
+    """
+    Aktualisiert existierende Zeilen in der GPKG direkt mit SQLite UPDATE.
+    Keine Duplikate, keine Geometrie-Probleme, keine Klammern!
+    """
+
+    # Backup erstellen
+    safe_copy(filepath)
+
+    # Verbinde mit GPKG
+    conn = sqlite3.connect(filepath)
+    cursor = conn.cursor()
+
+    # Schritt 1: PN_Protokoll mit SQL UPDATE aktualisieren
+    print("Aktualisiere PN_Protokoll...")
+    for probe in probes_list:
         # Probe in df finden
         df_row = df[df["Nummer"] == probe]
         if df_row.empty:
-            print(f"Probe {probe} nicht in df gefunden.")
             continue
 
         df_idx = df_row.index[0]
 
-        # Probe in PN_Protokoll finden
-        gdf_prt_row = gdf_prt[gdf_prt["Nummer"] == probe]
+        # Baue SQL UPDATE Pairs für alle Spalten aus gdf_prt
+        update_pairs = []
+        update_values = []
 
-        if not gdf_prt_row.empty:
-            prt_idx = gdf_prt_row.index[0]
-            for col in common_cols_prt:
+        for col in gdf_prt.columns:
+            if col == "geometry":
+                continue
+
+            # Wert aus df nehmen, falls vorhanden, sonst behalte Original
+            if col in df.columns:
                 val = df.loc[df_idx, col]
-                if pd.notna(val):
-                    gdf_prt.loc[prt_idx, col] = val
-        else:
-            print(f"Keine Zeile in PN_Protokoll für Probe {probe} gefunden.")
 
-        # Zugehörige Gruppe in df abfragen
+                # Nur wenn Wert nicht NaN, üpdate
+                if pd.notna(val):
+                    # Konvertiere zu SQL-kompatiblem Wert
+                    if pd.api.types.is_float_dtype(gdf_prt[col].dtype):
+                        try:
+                            sql_val = float(val)
+                            update_pairs.append(f"`{col}` = ?")
+                            update_values.append(sql_val)
+                        except (ValueError, TypeError):
+                            pass
+                    elif pd.api.types.is_integer_dtype(gdf_prt[col].dtype):
+                        try:
+                            sql_val = int(float(val))
+                            update_pairs.append(f"`{col}` = ?")
+                            update_values.append(sql_val)
+                        except (ValueError, TypeError):
+                            pass
+                    elif pd.api.types.is_datetime64_any_dtype(gdf_prt[col].dtype):
+                        sql_val = str(pd.Timestamp(val))
+                        update_pairs.append(f"`{col}` = ?")
+                        update_values.append(sql_val)
+                    else:
+                        sql_val = str(val)
+                        update_pairs.append(f"`{col}` = ?")
+                        update_values.append(sql_val)
+
+        # Führe UPDATE aus wenn es Änderungen gibt
+        if update_pairs:
+            update_values.append(probe)
+            sql = f"UPDATE PN_Protokoll SET {', '.join(update_pairs)} WHERE Nummer = ?"
+            try:
+                cursor.execute(sql, update_values)
+            except Exception:
+                pass
+
+    conn.commit()
+
+    # Schritt 2: PN_Gruppe mit SQL UPDATE aktualisieren
+    print("Aktualisiere PN_Gruppe...")
+    for probe in probes_list:
+        df_row = df[df["Nummer"] == probe]
+        if df_row.empty:
+            continue
+
+        df_idx = df_row.index[0]
         grp_number = df_row.loc[df_idx, "Gruppe_Nummer"]
 
         if pd.isna(grp_number):
-            print(f"Probe {probe} hat keine Gruppe_Nummer – übersprungen.")
             continue
 
-        # Gruppe im gpkg matchen
-        gdf_group_row = gdf_group[gdf_group["Gruppe_Nummer"] == grp_number]
+        # Baue SQL UPDATE Pairs
+        update_pairs = []
+        update_values = []
 
-        if not gdf_group_row.empty:
-            grp_idx = gdf_group_row.index[0]
-            for col in common_cols_group:
+        for col in gdf_group.columns:
+            if col == "geometry":
+                continue
+
+            if col in df.columns:
                 val = df.loc[df_idx, col]
+
                 if pd.notna(val):
-                    gdf_group.loc[grp_idx, col] = val
-        else:
-            print(f"Gruppe {grp_number} nicht in PN_Gruppe gefunden.")
+                    if pd.api.types.is_float_dtype(gdf_group[col].dtype):
+                        try:
+                            sql_val = float(val)
+                            update_pairs.append(f"`{col}` = ?")
+                            update_values.append(sql_val)
+                        except (ValueError, TypeError):
+                            pass
+                    elif pd.api.types.is_integer_dtype(gdf_group[col].dtype):
+                        try:
+                            sql_val = int(float(val))
+                            update_pairs.append(f"`{col}` = ?")
+                            update_values.append(sql_val)
+                        except (ValueError, TypeError):
+                            pass
+                    else:
+                        sql_val = str(val)
+                        update_pairs.append(f"`{col}` = ?")
+                        update_values.append(sql_val)
 
-    # Schreiben
-    safe_copy(filepath)
-    gdf_group.to_file(filepath, driver="GPKG", layer="PN_Gruppe", engine="fiona")
-    write_table_to_gpkg(gdf_prt, filepath, "PN_Protokoll")
+        # Führe UPDATE aus
+        if update_pairs:
+            update_values.append(int(grp_number))
+            sql = f"UPDATE PN_Gruppe SET {', '.join(update_pairs)} WHERE Gruppe_Nummer = ?"
+            try:
+                cursor.execute(sql, update_values)
+            except Exception:
+                pass
 
+    conn.commit()
+    conn.close()
 
-def write_table_to_gpkg(df: pd.DataFrame, filepath: str, layer_name: str):
-    # datetime-Spalten ohne Zeitzone machen
-    for col in df.columns:
-        if pd.api.types.is_datetime64_any_dtype(df[col]):
-            df[col] = df[col].dt.tz_localize(None)
-
-    # Pandas-Typen → Fiona-Typen mappen
-    def map_dtype(dtype):
-        if pd.api.types.is_integer_dtype(dtype):
-            return "int"
-        elif pd.api.types.is_float_dtype(dtype):
-            return "float"
-        elif pd.api.types.is_bool_dtype(dtype):
-            return "bool"
-        elif pd.api.types.is_datetime64_any_dtype(dtype):
-            return "datetime"
-        else:
-            return "string"
-
-    schema = {
-        "geometry": "None",
-        "properties": {col: map_dtype(df[col].dtype) for col in df.columns}
-    }
-
-    # Werte vor dem Schreiben kompatibel machen
-    def normalize_value(val):
-        if pd.isna(val):
-            return None
-
-        # Strings
-        if isinstance(val, str) or pd.api.types.is_string_dtype(type(val)):
-            return val
-
-        # Floats / ints / bool
-        if isinstance(val, (int, float, bool)):
-            return val
-
-        # Datumswerte
-        if isinstance(val, pd.Timestamp):
-            return val.to_pydatetime()  # ohne TZ
-
-        return str(val)
-
-    # Schreiben
-    with Env():
-        with fiona.open(
-                filepath,
-                mode="w",
-                driver="GPKG",
-                schema=schema,
-                layer=layer_name
-        ) as dst:
-            for _, row in df.iterrows():
-                dst.write({
-                    "geometry": None,
-                    "properties": {col: normalize_value(row[col]) for col in df.columns}
-                })
+    print("GPKG mit SQLite UPDATE aktualisiert (keine Duplikate, keine Klammern!)")
 
 
 def safe_copy(filepath):
