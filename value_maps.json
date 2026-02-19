@@ -4,12 +4,6 @@
       "False": 0,
       "True": 1
     },
-    "Probentyp": {
-      "Feststoff": 0,
-      "Flüssigkeit": 1,
-      "Wischprobe": 2,
-      "Kernbohrung": 3
-    },
     "Materialart": {
       "(keine Auswahl)": 0,
       "Aktivkohle": 1,
@@ -70,13 +64,6 @@
       "Zuluft": 8,
       "Abluft": 9,
       "unbekannt": 10
-    },
-    "Oberflaechenbeschaffenheit": {
-      "glatt": 0,
-      "leicht rau": 1,
-      "rau": 2,
-      "rau & korrodiert": 3,
-      "<NULL>": 4
     },
     "Verdacht": {
       "(keine Auswahl)": 0,
@@ -144,12 +131,6 @@
       "Kernbohrmaschine": 27,
       "lose Entnahme": 28
     },
-    "Ma_Zustand": {
-      "trocken": 0,
-      "feucht": 1,
-      "nass": 2,
-      "<NULL>": 3
-    },
     "Ma_Beschaffenheit": {
       "(keine Auswahl)": 0,
       "Pulver": 1,
@@ -179,14 +160,6 @@
       "Probe geteilt, in folgende Teilproben:": 1,
       "Probe durch Teilung gewonnen aus Probe:": 2
     },
-    "WP_Material": {
-      "Textil (trocken)": 0,
-      "Textil (Wasser)": 1,
-      "Textil (Alkohol)": 2,
-      "Papier": 3,
-      "3M_Scotch": 4,
-      "<NULL>": 5
-    },
     "AP_behaelter": {
       "(keine Auswahl)": 0,
       "47 D": 1,
@@ -209,39 +182,6 @@
       "konventionelle Schadstoffe": 4,
       "Freigabe": 5,
       "Abfalldeklaration": 6
-    },
-    "Beprobungsflaeche": {
-      "Bauteil (innen)": 0,
-      "Bauteil (außen)": 1,
-      "Rohrinnenseite": 2,
-      "Rohraußenseite": 3,
-      "Fußboden": 4,
-      "Wand": 5,
-      "Decke": 6,
-      "Dilatationsfuge": 7
-    },
-    "Mess_Typ_Stelle": {
-      "6150_AD_6": 0,
-      "<NULL>": 1
-    },
-    "Messabstand": {
-      "Kontakt": 0,
-      "1": 1,
-      "10": 2,
-      "50": 3,
-      "100": 4,
-      "<NULL>": 5
-    },
-    "Mess_Typ_DM": {
-      "LB124": 0,
-      "LB124_300": 1,
-      "CoMo_170": 2,
-      "<NULL>": 3
-    },
-    "PN_team": {
-      "T1": 0,
-      "T2": 1,
-      "<NULL>": 2
     }
   }
 }
