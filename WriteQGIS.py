@@ -351,7 +351,7 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list, debug=True, debug_
         print(f"[DEBUG PN_Protokoll] Summary: {dbg_prt}")
         print(f"[DEBUG PN_Gruppe] Summary: {dbg_grp}")
 
-    print("GPKG mit SQLite UPDATE aktualisiert (keine Duplikate, keine Klammern!)")
+    print("GPKG mit SQLite UPDATE aktualisiert)")
 
 
 def safe_copy(filepath):
