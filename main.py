@@ -8,6 +8,9 @@ os.environ["PROJ_LIB"] = r"C:\Users\SASBOITE\AppData\Local\anaconda3\envs\nuklid
 os.environ["GDAL_DATA"] = os.path.join(os.environ["CONDA_PREFIX"], "Library", "share", "gdal")
 
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
+warnings.filterwarnings("ignore", message=".*Measured.*geometry.*")
+warnings.filterwarnings("ignore", message=".*Non-conformant content.*")
+
 
 init_reading()
 

@@ -125,8 +125,11 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
             if col in df.columns:
                 val = df.loc[df_idx, col]
 
-                # Nur aktualisieren wenn Wert nicht NaN
-                if pd.notna(val):
+                # Prüfe ob Wert leer ist (NaN, None, leerer String)
+                is_empty = pd.isna(val) or (isinstance(val, str) and val.strip() == "")
+
+                if not is_empty:
+                    # Wert ist nicht leer -> aktualisieren
                     # Versuche Value Map Konvertierung für TEXT-Spalten
                     converted_val = convert_to_coded_value(col, val, value_maps, "PN_Protokoll")
 
@@ -138,6 +141,13 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
                                 gdf_prt.at[gpkg_idx, col] = bool(int(converted_val))
                             else:
                                 gdf_prt.at[gpkg_idx, col] = bool(converted_val)
+                        elif pd.api.types.is_datetime64_any_dtype(gdf_prt[col].dtype):
+                            # Datetime-Spalte: konvertiere zu Pandas Timestamp
+                            dt_val = pd.to_datetime(converted_val)
+                            # Entferne Timezone falls vorhanden um dtype-Kompatibilität sicherzustellen
+                            if hasattr(dt_val, 'tz_localize'):
+                                dt_val = dt_val.tz_localize(None)
+                            gdf_prt.at[gpkg_idx, col] = dt_val
                         elif pd.api.types.is_float_dtype(gdf_prt[col].dtype):
                             gdf_prt.at[gpkg_idx, col] = float(converted_val)
                         elif pd.api.types.is_integer_dtype(gdf_prt[col].dtype):
@@ -147,6 +157,9 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
                     except (ValueError, TypeError):
                         # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
                         pass
+                else:
+                    # Wert ist leer -> setze explizit None/NULL in GPKG
+                    gdf_prt.at[gpkg_idx, col] = None
 
     # Aktualisiere PN_Gruppe
     print("Aktualisiere PN_Gruppe...")
@@ -177,8 +190,11 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
             if col in df.columns:
                 val = df.loc[df_idx, col]
 
-                # Nur aktualisieren wenn Wert nicht NaN
-                if pd.notna(val):
+                # Prüfe ob Wert leer ist (NaN, None, leerer String)
+                is_empty = pd.isna(val) or (isinstance(val, str) and val.strip() == "")
+
+                if not is_empty:
+                    # Wert ist nicht leer -> aktualisieren
                     # Versuche Value Map Konvertierung für TEXT-Spalten
                     converted_val = convert_to_coded_value(col, val, value_maps, "PN_Gruppe")
 
@@ -190,6 +206,13 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
                                 gdf_group.at[gpkg_idx, col] = bool(int(converted_val))
                             else:
                                 gdf_group.at[gpkg_idx, col] = bool(converted_val)
+                        elif pd.api.types.is_datetime64_any_dtype(gdf_group[col].dtype):
+                            # Datetime-Spalte: konvertiere zu Pandas Timestamp
+                            dt_val = pd.to_datetime(converted_val)
+                            # Entferne Timezone falls vorhanden um dtype-Kompatibilität sicherzustellen
+                            if hasattr(dt_val, 'tz_localize'):
+                                dt_val = dt_val.tz_localize(None)
+                            gdf_group.at[gpkg_idx, col] = dt_val
                         elif pd.api.types.is_float_dtype(gdf_group[col].dtype):
                             gdf_group.at[gpkg_idx, col] = float(converted_val)
                         elif pd.api.types.is_integer_dtype(gdf_group[col].dtype):
@@ -199,10 +222,14 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
                     except (ValueError, TypeError):
                         # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
                         pass
+                else:
+                    # Wert ist leer -> setze explizit None/NULL in GPKG
+                    gdf_group.at[gpkg_idx, col] = None
 
-    # Schreibe Layers zurück mit korrektem Modus
+    # Schreibe Layers zurück mit pyogrio
     print("Schreibe GPKG...")
-    # Schreibe PN_Protokoll (wenn es ein GeoDataFrame ist)
+
+    # Schreibe PN_Protokoll (überschreibt die Datei)
     if isinstance(gdf_prt, gpd.GeoDataFrame):
         gdf_prt.to_file(filepath, layer="PN_Protokoll", driver="GPKG", engine="pyogrio")
     else:
