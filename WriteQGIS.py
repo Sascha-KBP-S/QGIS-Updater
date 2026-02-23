@@ -1,12 +1,9 @@
 # Imports
 from os.path import exists
-
 import pandas as pd
 import geopandas as gpd
-import sqlite3
 import pathlib
 import shutil
-import os
 import json
 from datetime import datetime
 
@@ -28,17 +25,14 @@ def load_value_maps(json_path="value_maps.json"):
 # GeoPackage einlesen
 def read_layer(path, layer):
     """
-    Liest einen Layer aus GPKG mit pyogrio Engine (moderner und schneller als fiona).
-    Die GPKG-Datentypen sind führend!
-    Gibt IMMER ein GeoDataFrame zurück (auch ohne Geometrie).
+    Liest einen Layer aus GPKG mit pyogrio Engine.
+    Gibt ein GeoDataFrame zurück.
     """
     try:
         gdf = gpd.read_file(path, layer=layer, engine="pyogrio")
     except ValueError:
-        # Wenn keine echte Geometrie gefunden wurde, lese ohne geometry
-        df = gpd.read_file(path, layer=layer, engine="pyogrio", ignore_geometry=True)
-        # Konvertiere zu GeoDataFrame mit None-Geometrie
-        gdf = gpd.GeoDataFrame(df, geometry=None)
+        # Wenn keine Geometrie gefunden wird, lese ohne Geometrie
+        gdf = gpd.read_file(path, layer=layer, engine="pyogrio", ignore_geometry=True)
 
     return gdf
 
@@ -78,210 +72,104 @@ def convert_to_coded_value(column_name, value, value_maps, layer_name):
     return value
 
 
-# Daten in GPKG Datenbank schreiben - DIREKT MIT SQLite UPDATE (KEINE INSERT/DELETE)
-def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list, debug=True, debug_probe_numbers=None):
+# Daten in GPKG Datenbank schreiben mit Geopandas
+def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
     """
-    Aktualisiert existierende Zeilen in der GPKG direkt mit SQLite UPDATE.
-    Keine Duplikate, keine Geometrie-Probleme, keine Klammern!
+    Aktualisiert existierende Zeilen in der GPKG mit Geopandas.
+    Wendet Value Maps an und schreibt korrekt in die Datei.
 
-    debug: wenn True, werden Debug-Informationen zu Skips/Typfehlern/Rowcount ausgegeben.
-    debug_probe_numbers: optionales Iterable von Probennummern, um Debug-Ausgaben zu filtern.
+    Args:
+        df: DataFrame mit Eingabedaten aus Excel
+        gdf_group: GeoDataFrame PN_Gruppe Layer
+        gdf_prt: GeoDataFrame PN_Protokoll Layer
+        filepath: Pfad zur GPKG-Datei
+        probes_list: Liste der zu aktualisierenden Probennummern
     """
 
     # Backup erstellen
     safe_copy(filepath)
 
-    # Verbinde mit GPKG
-    conn = sqlite3.connect(filepath)
-    cursor = conn.cursor()
-
-    def _should_debug(probe):
-        if not debug:
-            return False
-        if debug_probe_numbers is None:
-            return True
-        return probe in debug_probe_numbers
-
-    def _get_column_type(table, column):
-        rows = cursor.execute(f"PRAGMA table_info('{table}')").fetchall()
-        for row in rows:
-            if row[1] == column:
-                return row[2]
-        return None
-
-    def _build_where(column, value, col_type):
-        if pd.isna(value):
-            return None, None
-        t = (col_type or "").upper()
-        if "TEXT" in t:
-            # Bei TEXT: numerisch vergleichen, falls möglich
-            if isinstance(value, (int, float, pd.Int64Dtype().type)):
-                return f"CAST(`{column}` AS REAL) = ?", [float(value)]
-            return f"`{column}` = ?", [str(value)]
-        if "INT" in t:
-            return f"`{column}` = ?", [int(value)]
-        if "REAL" in t or "FLOA" in t or "DOUB" in t:
-            return f"`{column}` = ?", [float(value)]
-        return f"`{column}` = ?", [value]
-
-    def _try_load_spatialite():
-        try:
-            conn.enable_load_extension(True)
-        except Exception:
-            return False
-
-        candidates = [
-            "mod_spatialite",
-            "mod_spatialite.dll",
-            os.path.join(os.environ.get("CONDA_PREFIX", ""), "Library", "bin", "mod_spatialite.dll"),
-            os.path.join(os.environ.get("CONDA_PREFIX", ""), "Library", "lib", "mod_spatialite.dll"),
-        ]
-        for path in candidates:
-            if not path:
-                continue
-            if path.endswith(".dll") and not os.path.exists(path):
-                continue
-            try:
-                conn.load_extension(path)
-                return True
-            except Exception:
-                continue
-        return False
-
-    spatialite_ok = _try_load_spatialite()
-    if debug and not spatialite_ok:
-        print("[DEBUG] Spatialite-Erweiterung konnte nicht geladen werden. UPDATEs auf Geo-Tabellen koennen fehlschlagen (ST_IsEmpty).")
-
-    # Lade Value Maps aus der QGIS-Projektverwaltung
+    # Lade Value Maps
     try:
         with open("resources/value_maps_from_qgis.json", "r", encoding="utf-8") as f:
             value_maps = json.load(f)
-        if debug:
-            print("[DEBUG] Value Maps aus QGIS-Projekt geladen.")
     except FileNotFoundError:
-        if debug:
-            print("[WARNING] value_maps_from_qgis.json nicht gefunden. Verwende Fallback value_maps.json")
+        print("[WARNING] value_maps_from_qgis.json nicht gefunden. Verwende Fallback value_maps.json")
         value_maps = load_value_maps("value_maps.json")
     except json.JSONDecodeError as e:
-        if debug:
-            print(f"[WARNING] Fehler beim Lesen von value_maps_from_qgis.json: {e}")
+        print(f"[WARNING] Fehler beim Lesen von value_maps_from_qgis.json: {e}")
         value_maps = load_value_maps("value_maps.json")
 
-    # Debug-Zaehler
-    dbg_prt = {"nan_skips": 0, "conv_errors": 0, "empty_updates": 0, "zero_rowcount": 0}
-    dbg_grp = {"nan_skips": 0, "conv_errors": 0, "empty_updates": 0, "zero_rowcount": 0}
-
-    prt_key_type = _get_column_type("PN_Protokoll", "Nummer")
-    grp_key_type = _get_column_type("PN_Gruppe", "Gruppe_Nummer")
-
-    # Schritt 1: PN_Protokoll mit SQL UPDATE aktualisieren
+    # Aktualisiere PN_Protokoll
     print("Aktualisiere PN_Protokoll...")
     for probe in probes_list:
-        # Probe in df finden
-        df_row = df[df["Nummer"] == probe]
-        if df_row.empty:
-            if _should_debug(probe):
-                print(f"[DEBUG PN_Protokoll] Keine Zeile in df fuer Nummer={probe} gefunden")
+        # Finde Zeile in Excel-Dataframe
+        df_mask = df["Nummer"] == probe
+        if not df_mask.any():
             continue
 
-        df_idx = df_row.index[0]
+        df_idx = df[df_mask].index[0]
 
-        # Baue SQL UPDATE Pairs fuer alle Spalten aus gdf_prt
-        update_pairs = []
-        update_values = []
+        # Finde entsprechende Zeile in GPKG
+        gpkg_mask = gdf_prt["Nummer"] == probe
+        if not gpkg_mask.any():
+            continue
 
+        gpkg_idx = gdf_prt[gpkg_mask].index[0]
+
+        # Aktualisiere jede Spalte
         for col in gdf_prt.columns:
             if col == "geometry":
                 continue
 
-            # Wert aus df nehmen, falls vorhanden, sonst behalte Original
             if col in df.columns:
                 val = df.loc[df_idx, col]
 
-                # Nur wenn Wert nicht NaN, update
+                # Nur aktualisieren wenn Wert nicht NaN
                 if pd.notna(val):
-                    # Konvertiere zu SQL-kompatiblem Wert
-                    if pd.api.types.is_float_dtype(gdf_prt[col].dtype):
-                        try:
-                            sql_val = float(val)
-                            update_pairs.append(f"`{col}` = ?")
-                            update_values.append(sql_val)
-                        except (ValueError, TypeError) as exc:
-                            dbg_prt["conv_errors"] += 1
-                            if _should_debug(probe):
-                                print(f"[DEBUG PN_Protokoll] Float-Konvertierung fehlgeschlagen: Nummer={probe}, Spalte={col}, Wert={val!r}, Fehler={exc}")
-                    elif pd.api.types.is_integer_dtype(gdf_prt[col].dtype):
-                        try:
-                            sql_val = int(float(val))
-                            update_pairs.append(f"`{col}` = ?")
-                            update_values.append(sql_val)
-                        except (ValueError, TypeError) as exc:
-                            dbg_prt["conv_errors"] += 1
-                            if _should_debug(probe):
-                                print(f"[DEBUG PN_Protokoll] Int-Konvertierung fehlgeschlagen: Nummer={probe}, Spalte={col}, Wert={val!r}, Fehler={exc}")
-                    elif pd.api.types.is_datetime64_any_dtype(gdf_prt[col].dtype):
-                        sql_val = str(pd.Timestamp(val))
-                        update_pairs.append(f"`{col}` = ?")
-                        update_values.append(sql_val)
-                    else:
-                        # TEXT-Spalte: Versuche Value Map Konvertierung
-                        converted_val = convert_to_coded_value(col, val, value_maps, "PN_Protokoll")
-                        sql_val = str(converted_val) if converted_val != val else str(val)
-                        update_pairs.append(f"`{col}` = ?")
-                        update_values.append(sql_val)
-                else:
-                    dbg_prt["nan_skips"] += 1
-                    if _should_debug(probe):
-                        print(f"[DEBUG PN_Protokoll] NaN/leer uebersprungen: Nummer={probe}, Spalte={col}")
+                    # Versuche Value Map Konvertierung für TEXT-Spalten
+                    converted_val = convert_to_coded_value(col, val, value_maps, "PN_Protokoll")
 
-        # Fuehre UPDATE aus wenn es Aenderungen gibt
-        if update_pairs:
-            where_sql, where_vals = _build_where("Nummer", probe, prt_key_type)
-            if not where_sql:
-                if _should_debug(probe):
-                    print(f"[DEBUG PN_Protokoll] WHERE fuer Nummer nicht ableitbar: Nummer={probe}")
-                continue
-            update_values.extend(where_vals)
-            sql = f"UPDATE PN_Protokoll SET {', '.join(update_pairs)} WHERE {where_sql}"
-            try:
-                cursor.execute(sql, update_values)
-                if cursor.rowcount == 0:
-                    dbg_prt["zero_rowcount"] += 1
-                    if _should_debug(probe):
-                        count_sql = f"SELECT COUNT(*) FROM PN_Protokoll WHERE {where_sql}"
-                        cnt = cursor.execute(count_sql, where_vals).fetchone()[0]
-                        print(f"[DEBUG PN_Protokoll] UPDATE trifft keine Zeile: Nummer={probe}, Treffer={cnt}")
-            except Exception as exc:
-                if _should_debug(probe):
-                    print(f"[DEBUG PN_Protokoll] UPDATE-Fehler: Nummer={probe}, Fehler={exc}")
-        else:
-            dbg_prt["empty_updates"] += 1
-            if _should_debug(probe):
-                print(f"[DEBUG PN_Protokoll] Keine updatebaren Werte: Nummer={probe}")
+                    # Konvertiere zum richtigen Datentyp
+                    try:
+                        if pd.api.types.is_bool_dtype(gdf_prt[col].dtype):
+                            # Bool-Spalte: konvertiere 0.0/1.0 zu False/True
+                            if isinstance(converted_val, (int, float)):
+                                gdf_prt.at[gpkg_idx, col] = bool(int(converted_val))
+                            else:
+                                gdf_prt.at[gpkg_idx, col] = bool(converted_val)
+                        elif pd.api.types.is_float_dtype(gdf_prt[col].dtype):
+                            gdf_prt.at[gpkg_idx, col] = float(converted_val)
+                        elif pd.api.types.is_integer_dtype(gdf_prt[col].dtype):
+                            gdf_prt.at[gpkg_idx, col] = int(float(converted_val))
+                        else:
+                            gdf_prt.at[gpkg_idx, col] = converted_val
+                    except (ValueError, TypeError):
+                        # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
+                        pass
 
-    conn.commit()
-
-    # Schritt 2: PN_Gruppe mit SQL UPDATE aktualisieren
+    # Aktualisiere PN_Gruppe
     print("Aktualisiere PN_Gruppe...")
     for probe in probes_list:
-        df_row = df[df["Nummer"] == probe]
-        if df_row.empty:
-            if _should_debug(probe):
-                print(f"[DEBUG PN_Gruppe] Keine Zeile in df fuer Nummer={probe} gefunden")
+        # Finde Zeile in Excel-Dataframe
+        df_mask = df["Nummer"] == probe
+        if not df_mask.any():
             continue
 
-        df_idx = df_row.index[0]
-        grp_number = df_row.loc[df_idx, "Gruppe_Nummer"]
+        df_idx = df[df_mask].index[0]
+        grp_number = df.loc[df_idx, "Gruppe_Nummer"]
 
         if pd.isna(grp_number):
-            if _should_debug(probe):
-                print(f"[DEBUG PN_Gruppe] Gruppe_Nummer leer: Nummer={probe}")
             continue
 
-        # Baue SQL UPDATE Pairs
-        update_pairs = []
-        update_values = []
+        # Finde entsprechende Zeile in GPKG
+        gpkg_mask = gdf_group["Gruppe_Nummer"] == grp_number
+        if not gpkg_mask.any():
+            continue
 
+        gpkg_idx = gdf_group[gpkg_mask].index[0]
+
+        # Aktualisiere jede Spalte
         for col in gdf_group.columns:
             if col == "geometry":
                 continue
@@ -289,72 +177,56 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list, debug=True, debug_
             if col in df.columns:
                 val = df.loc[df_idx, col]
 
+                # Nur aktualisieren wenn Wert nicht NaN
                 if pd.notna(val):
-                    if pd.api.types.is_float_dtype(gdf_group[col].dtype):
-                        try:
-                            sql_val = float(val)
-                            update_pairs.append(f"`{col}` = ?")
-                            update_values.append(sql_val)
-                        except (ValueError, TypeError) as exc:
-                            dbg_grp["conv_errors"] += 1
-                            if _should_debug(probe):
-                                print(f"[DEBUG PN_Gruppe] Float-Konvertierung fehlgeschlagen: Nummer={probe}, Spalte={col}, Wert={val!r}, Fehler={exc}")
-                    elif pd.api.types.is_integer_dtype(gdf_group[col].dtype):
-                        try:
-                            sql_val = int(float(val))
-                            update_pairs.append(f"`{col}` = ?")
-                            update_values.append(sql_val)
-                        except (ValueError, TypeError) as exc:
-                            dbg_grp["conv_errors"] += 1
-                            if _should_debug(probe):
-                                print(f"[DEBUG PN_Gruppe] Int-Konvertierung fehlgeschlagen: Nummer={probe}, Spalte={col}, Wert={val!r}, Fehler={exc}")
-                    else:
-                        # TEXT-Spalte: Versuche Value Map Konvertierung
-                        converted_val = convert_to_coded_value(col, val, value_maps, "PN_Gruppe")
-                        sql_val = str(converted_val) if converted_val != val else str(val)
-                        update_pairs.append(f"`{col}` = ?")
-                        update_values.append(sql_val)
-                else:
-                    dbg_grp["nan_skips"] += 1
-                    if _should_debug(probe):
-                        print(f"[DEBUG PN_Gruppe] NaN/leer uebersprungen: Nummer={probe}, Spalte={col}")
+                    # Versuche Value Map Konvertierung für TEXT-Spalten
+                    converted_val = convert_to_coded_value(col, val, value_maps, "PN_Gruppe")
 
-        # Fuehre UPDATE aus
-        if update_pairs:
-            where_sql, where_vals = _build_where("Gruppe_Nummer", grp_number, grp_key_type)
-            if not where_sql:
-                if _should_debug(probe):
-                    print(f"[DEBUG PN_Gruppe] WHERE fuer Gruppe_Nummer nicht ableitbar: Nummer={probe}")
-                continue
-            update_values.extend(where_vals)
-            sql = f"UPDATE PN_Gruppe SET {', '.join(update_pairs)} WHERE {where_sql}"
-            try:
-                cursor.execute(sql, update_values)
-                if cursor.rowcount == 0:
-                    dbg_grp["zero_rowcount"] += 1
-                    if _should_debug(probe):
-                        count_sql = f"SELECT COUNT(*) FROM PN_Gruppe WHERE {where_sql}"
-                        cnt = cursor.execute(count_sql, where_vals).fetchone()[0]
-                        print(f"[DEBUG PN_Gruppe] UPDATE trifft keine Zeile: Gruppe_Nummer={grp_number} (Nummer={probe}), Treffer={cnt}")
-            except Exception as exc:
-                if _should_debug(probe):
-                    print(f"[DEBUG PN_Gruppe] UPDATE-Fehler: Gruppe_Nummer={grp_number}, Nummer={probe}, Fehler={exc}")
-        else:
-            dbg_grp["empty_updates"] += 1
-            if _should_debug(probe):
-                print(f"[DEBUG PN_Gruppe] Keine updatebaren Werte: Nummer={probe}")
+                    # Konvertiere zum richtigen Datentyp
+                    try:
+                        if pd.api.types.is_bool_dtype(gdf_group[col].dtype):
+                            # Bool-Spalte: konvertiere 0.0/1.0 zu False/True
+                            if isinstance(converted_val, (int, float)):
+                                gdf_group.at[gpkg_idx, col] = bool(int(converted_val))
+                            else:
+                                gdf_group.at[gpkg_idx, col] = bool(converted_val)
+                        elif pd.api.types.is_float_dtype(gdf_group[col].dtype):
+                            gdf_group.at[gpkg_idx, col] = float(converted_val)
+                        elif pd.api.types.is_integer_dtype(gdf_group[col].dtype):
+                            gdf_group.at[gpkg_idx, col] = int(float(converted_val))
+                        else:
+                            gdf_group.at[gpkg_idx, col] = converted_val
+                    except (ValueError, TypeError):
+                        # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
+                        pass
 
-    conn.commit()
-    conn.close()
+    # Schreibe Layers zurück mit korrektem Modus
+    print("Schreibe GPKG...")
+    # Schreibe PN_Protokoll (wenn es ein GeoDataFrame ist)
+    if isinstance(gdf_prt, gpd.GeoDataFrame):
+        gdf_prt.to_file(filepath, layer="PN_Protokoll", driver="GPKG", engine="pyogrio")
+    else:
+        print("[WARNING] PN_Protokoll ist kein GeoDataFrame!")
 
-    if debug:
-        print(f"[DEBUG PN_Protokoll] Summary: {dbg_prt}")
-        print(f"[DEBUG PN_Gruppe] Summary: {dbg_grp}")
+    # Schreibe PN_Gruppe (wenn es ein GeoDataFrame ist)
+    if isinstance(gdf_group, gpd.GeoDataFrame):
+        gdf_group.to_file(filepath, layer="PN_Gruppe", driver="GPKG", engine="pyogrio")
+    else:
+        print("[WARNING] PN_Gruppe ist kein GeoDataFrame!")
 
-    print("GPKG mit SQLite UPDATE aktualisiert)")
+    print("GPKG erfolgreich aktualisiert!")
+
+
+
 
 
 def safe_copy(filepath):
+    """
+    Erstellt ein Backup der GPKG-Datei mit aktuellem Datum.
+
+    Args:
+        filepath: Pfad zur GPKG-Datei die gesichert werden soll
+    """
     p = pathlib.Path(filepath)
     d = p.parent
     today = datetime.today().strftime("%Y%m%d")
@@ -368,3 +240,5 @@ def safe_copy(filepath):
             dest_path = f"{d}/{today}_pn_protokoll_V{i}.gpkg"
 
     shutil.copyfile(filepath, dest_path)
+
+

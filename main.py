@@ -40,7 +40,6 @@ write_gpkg(
     gdf_prt,
     qg_path,
     return_probes(df),
-    debug=False,
 )
 
 print("\n" + "="*80)
