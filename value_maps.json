@@ -1,9 +1,6 @@
 {
   "PN_Protokoll": {
-    "ung_Nummer_Chbx": {
-      "False": 0,
-      "True": 1
-    },
+
     "Materialart": {
       "(keine Auswahl)": 0,
       "Aktivkohle": 1,

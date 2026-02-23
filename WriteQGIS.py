@@ -226,20 +226,30 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
                     # Wert ist leer -> setze explizit None/NULL in GPKG
                     gdf_group.at[gpkg_idx, col] = None
 
-    # Schreibe Layers zurück mit pyogrio
+    # Schreibe Layers zurück mit Geopandas
     print("Schreibe GPKG...")
 
-    # Schreibe PN_Protokoll (überschreibt die Datei)
-    if isinstance(gdf_prt, gpd.GeoDataFrame):
-        gdf_prt.to_file(filepath, layer="PN_Protokoll", driver="GPKG", engine="pyogrio")
-    else:
-        print("[WARNING] PN_Protokoll ist kein GeoDataFrame!")
+    try:
+        # Konvertiere zu GeoDataFrame falls nötig
+        if not isinstance(gdf_prt, gpd.GeoDataFrame):
+            gdf_prt = gpd.GeoDataFrame(gdf_prt)
 
-    # Schreibe PN_Gruppe (wenn es ein GeoDataFrame ist)
-    if isinstance(gdf_group, gpd.GeoDataFrame):
+        # Schreibe PN_Protokoll (überschreibe nur diesen Layer, behalte andere)
+        gdf_prt.to_file(filepath, layer="PN_Protokoll", driver="GPKG", engine="pyogrio")
+        print("✓ PN_Protokoll geschrieben")
+    except Exception as e:
+        print(f"[ERROR] Fehler beim Schreiben von PN_Protokoll: {e}")
+
+    try:
+        # Konvertiere zu GeoDataFrame falls nötig
+        if not isinstance(gdf_group, gpd.GeoDataFrame):
+            gdf_group = gpd.GeoDataFrame(gdf_group)
+
+        # Schreibe PN_Gruppe (überschreibe nur diesen Layer)
         gdf_group.to_file(filepath, layer="PN_Gruppe", driver="GPKG", engine="pyogrio")
-    else:
-        print("[WARNING] PN_Gruppe ist kein GeoDataFrame!")
+        print("✓ PN_Gruppe geschrieben")
+    except Exception as e:
+        print(f"[ERROR] Fehler beim Schreiben von PN_Gruppe: {e}")
 
     print("GPKG erfolgreich aktualisiert!")
 

@@ -23,7 +23,7 @@ def load_value_maps(json_path="value_maps.json"):
 
 # PN-Protokoll einlesen, dabei die ersten 4 Zeilen überspringen
 def load_input_data(filepath: str):
-    return pd.read_excel(filepath, skiprows=4)
+    return pd.read_excel(filepath,sheet_name="PN-Protokoll", skiprows=4)
 
 
 # Probenliste definieren (Anzahl gültige Proben)
@@ -53,8 +53,6 @@ def init_reading():
 def append_columns(df_src: DataFrame):
     # Lade Value Maps
     value_maps = load_value_maps("value_maps.json")
-    prt_maps = value_maps.get("PN_Protokoll", {})
-    grp_maps = value_maps.get("PN_Gruppe", {})
 
     df = pd.DataFrame({
         # Probennummer
@@ -63,7 +61,7 @@ def append_columns(df_src: DataFrame):
         "Nummer": pd.to_numeric(df_src.iloc[:, col_index("C")], errors="coerce").astype(pd.Int64Dtype()),
         "Nummer_Bezeichnung": df_src.iloc[:, col_index("D")].fillna("").astype(str),
         "Gruppe_Nummer": pd.to_numeric(df_src.iloc[:, col_index("E")], errors="coerce").astype(pd.Int64Dtype()),
-        "ung_Nummer_Chbx": df_src.iloc[:, col_index("F")].apply(bool_to_float),
+        "ung_Nummer_Chbx": df_src.iloc[:, col_index("F")].apply(bool_to_float).astype("boolean"),
         "ung_Nummer": pd.to_numeric(df_src.iloc[:, col_index("G")], errors="coerce").astype(float),
 
         # P-Nr.
@@ -203,15 +201,8 @@ def append_columns(df_src: DataFrame):
     return df
 
 
-def bool_str(value) -> str:
-    if pd.isna(value) or value == "":
-        return "false"
-    return "true"
-
-
-def bool_to_float(value) -> float:
+def bool_to_float(value) -> bool:
     """Konvertiert Boolean/String zu float (1.0 = true, 0.0 = false) für GPKG-Kompatibilität"""
     if pd.isna(value) or value == "" or value == False or value == "false" or value == "False" or value == 0:
-        return 0.0
-    return 1.0
-
+        return False
+    return True

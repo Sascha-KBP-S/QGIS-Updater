@@ -1,6 +1,7 @@
 # Imports
 import warnings
 import os
+import pandas as pd
 from ReadExcel import init_reading, load_input_data, append_columns, return_probes
 from WriteQGIS import write_gpkg, read_layer
 
@@ -21,6 +22,8 @@ qg_path = "resources/pn_protokoll.gpkg"
 
 # Dataframe source erstellen
 df_source = load_input_data(pn_path)
+
+
 
 # Gefilterten Dataframe erstellen
 df = append_columns(df_source)
@@ -48,3 +51,43 @@ write_gpkg(
 print("\n" + "="*80)
 print("DATENTRANSFER ABGESCHLOSSEN")
 print("="*80)
+
+# Debug: Überprüfe die geschriebenen Daten für Probe 326
+print("\n" + "="*80)
+print("DEBUG: Überprüfung Probe 326 in geschriebener GPKG")
+print("="*80)
+
+try:
+    # Lese die Layers neu ein
+    gdf_prt_check = read_layer(qg_path, "PN_Protokoll")
+    gdf_group_check = read_layer(qg_path, "PN_Gruppe")
+
+    # Suche Probe 326 in PN_Protokoll
+    row_prt = gdf_prt_check.loc[gdf_prt_check["Nummer"] == 326]
+    if not row_prt.empty:
+        print("\n[DEBUG] PN_Protokoll - Probe 326:")
+        print(row_prt.to_string(index=False))
+    else:
+        print("\n[DEBUG] Probe 326 nicht in PN_Protokoll gefunden")
+
+    # Suche Probe 326 in PN_Gruppe (über Gruppe_Nummer)
+    probe_326_data = df.loc[df["Nummer"] == 326]
+    if not probe_326_data.empty:
+        grp_num = probe_326_data.iloc[0]["Gruppe_Nummer"]
+        if pd.notna(grp_num):
+            row_group = gdf_group_check.loc[gdf_group_check["Gruppe_Nummer"] == grp_num]
+            if not row_group.empty:
+                print("\n[DEBUG] PN_Gruppe - Gruppe_Nummer", int(grp_num), "(für Probe 326):")
+                print(row_group.to_string(index=False))
+            else:
+                print("\n[DEBUG] Gruppe_Nummer", int(grp_num), "nicht in PN_Gruppe gefunden")
+        else:
+            print("\n[DEBUG] Probe 326 hat keine Gruppe_Nummer")
+    else:
+        print("\n[DEBUG] Probe 326 nicht im Excel-DataFrame gefunden")
+
+except Exception as e:
+    print(f"\n[ERROR] Fehler beim Debug-Check: {e}")
+    import traceback
+    traceback.print_exc()
+
