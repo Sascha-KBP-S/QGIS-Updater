@@ -1,6 +1,5 @@
 {
   "PN_Protokoll": {
-
     "Materialart": {
       "(keine Auswahl)": 0,
       "Aktivkohle": 1,
@@ -179,6 +178,16 @@
       "konventionelle Schadstoffe": 4,
       "Freigabe": 5,
       "Abfalldeklaration": 6
+    },
+    "Beprobungsflaeche": {
+      "Bauteil (innen)": 1,
+      "Bauteil (außen)": 2,
+      "Rohrinnenseite": 3,
+      "Rohraußenseite": 4,
+      "Fußboden": 5,
+      "Wand": 6,
+      "Decke": 7,
+      "Dilatationsfuge": 8
     }
   }
 }
