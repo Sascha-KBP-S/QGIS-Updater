@@ -61,7 +61,7 @@ def append_columns(df_src: DataFrame):
         "Nummer": pd.to_numeric(df_src.iloc[:, col_index("C")], errors="coerce").astype(pd.Int64Dtype()),
         "Nummer_Bezeichnung": df_src.iloc[:, col_index("D")].fillna("").astype(str),
         "Gruppe_Nummer": pd.to_numeric(df_src.iloc[:, col_index("E")], errors="coerce").astype(pd.Int64Dtype()),
-        "ung_Nummer_Chbx": df_src.iloc[:, col_index("F")].apply(bool_to_string),
+        "ung_Nummer_Chbx": df_src.iloc[:, col_index("F")].apply(excel_to_bool),
         "ung_Nummer": pd.to_numeric(df_src.iloc[:, col_index("G")], errors="coerce").astype(float),
 
         # P-Nr.
@@ -202,27 +202,12 @@ def append_columns(df_src: DataFrame):
     return df
 
 
-def bool_to_int(value) -> "int | pd._libs.missing.NAType":
-    """Konvertiert Boolean/String zu nullable 0/1 (1 = true, 0 = false)."""
-    if pd.isna(value) or value == "":
-        return pd.NA
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"false", "0", "nein", "no", "n"}:
-            return 0
-        if normalized in {"true", "1", "ja", "yes", "y"}:
-            return 1
-    return 1 if bool(value) else 0
 
 
-def bool_to_string(value) -> "bool | None":
-    """Konvertiert Boolean/String zu True (=ungültig) oder None. Leere/False Werte -> None."""
+
+def excel_to_bool(value) -> bool:
+    """Konvertiert Excel-Wert zu Boolean. Leere/False Werte -> False, sonst True."""
     if pd.isna(value) or value == "":
-        return None
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"false", "0", "nein", "no", "n", "none", "null"}:
-            return None
-        if normalized in {"true", "1", "ja", "yes", "y"}:
-            return True  # True = "ungültig"
-    return bool(value) if bool(value) else None
+        return False
+    else:
+        return True  # True = "ungültig"
