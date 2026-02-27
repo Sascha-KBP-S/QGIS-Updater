@@ -53,7 +53,7 @@ print("DATENTRANSFER ABGESCHLOSSEN")
 print("="*80)
 
 # Debug: Vergleiche Excel-Daten mit geschriebener GPKG für eine Probe
-probe = 358
+probe = 583
 
 if probe:
     print("\n" + "="*80)

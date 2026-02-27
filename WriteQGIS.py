@@ -75,18 +75,20 @@ def convert_to_coded_value(column_name, value, value_maps, layer_name):
 
 # Hilfsfunktion: Werte auf Ziel-Datentyp casten, ohne unnötige Aufwertung
 def cast_scalar_to_dtype(value, target_dtype, column_name=None):
-    # Spezialbehandlung für ung_Nummer_Chbx: 'true'/'false' Strings, leere Werte -> 'false'
+    # Spezialbehandlung für ung_Nummer_Chbx: True (=ungültig) oder None (=valid/falsch)
     if column_name == "ung_Nummer_Chbx":
-        if pd.isna(value) or (isinstance(value, str) and value.strip() == ""):
-            return "false"
+        if pd.isna(value):
+            return None
         if isinstance(value, str):
             normalized = value.strip().lower()
-            if normalized in {"false", "0", "nein", "no", "n"}:
-                return "false"
+            if normalized in {"false", "0", "nein", "no", "n", "none", "null"}:
+                return None
             if normalized in {"true", "1", "ja", "yes", "y"}:
-                return "true"
-            return normalized
-        return "true" if bool(value) else "false"
+                return True
+            # Wenn weder True noch False, dann None
+            return None
+        # Konvertiere zu echtem Python bool
+        return bool(value) if value else None
 
     # Für alle anderen Spalten: NULL bei NaN/None
     if pd.isna(value):
@@ -135,7 +137,7 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
     """
 
     # Spalten die als String gespeichert werden sollen
-    bool_as_string_columns = {"ung_Nummer_Chbx"}
+    bool_as_string_columns = {}  # Leer - ung_Nummer_Chbx wird nun als echtes Boolean gespeichert
     bool_as_int_columns = {"Reparatur"}
 
     # Stelle sicher, dass Bool-Spalten korrekt getyped werden
@@ -145,9 +147,9 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
         if col in gdf_group.columns:
             gdf_group[col] = pd.to_numeric(gdf_group[col], errors="coerce").astype(pd.Int64Dtype())
 
-    # Stelle sicher, dass pue_date als datetime geführt wird
-    if "pue_date" in gdf_prt.columns:
-        gdf_prt["pue_date"] = pd.to_datetime(gdf_prt["pue_date"], errors="coerce")
+    # Stelle sicher, dass ung_Nummer_Chbx als BooleanDtype gespeichert wird
+    if "ung_Nummer_Chbx" in gdf_prt.columns:
+        gdf_prt["ung_Nummer_Chbx"] = gdf_prt["ung_Nummer_Chbx"].astype(pd.BooleanDtype())
 
     # Backup erstellen
     safe_copy(filepath)
@@ -193,11 +195,11 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
 
                 if not is_empty:
                     # Wert ist nicht leer -> aktualisieren
-                    # Value Map nur bei Textspalten anwenden
+                    # Value Map nur bei Textspalten anwenden (nicht bei ung_Nummer_Chbx da Boolean)
                     converted_val = val
-                    if (col not in bool_as_string_columns and
-                        (pd.api.types.is_object_dtype(gdf_prt[col].dtype) or pd.api.types.is_string_dtype(gdf_prt[col].dtype))):
-                        converted_val = convert_to_coded_value(col, val, value_maps, "PN_Protokoll")
+                    if (pd.api.types.is_object_dtype(gdf_prt[col].dtype) or pd.api.types.is_string_dtype(gdf_prt[col].dtype)):
+                        if col != "ung_Nummer_Chbx":  # Überspringe Boolean-Spalten
+                            converted_val = convert_to_coded_value(col, val, value_maps, "PN_Protokoll")
 
                     # Konvertiere zum richtigen Datentyp
                     try:
@@ -244,11 +246,11 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
 
                 if not is_empty:
                     # Wert ist nicht leer -> aktualisieren
-                    # Value Map nur bei Textspalten anwenden
+                    # Value Map nur bei Textspalten anwenden (nicht bei ung_Nummer_Chbx da Boolean)
                     converted_val = val
-                    if (col not in bool_as_string_columns and
-                        (pd.api.types.is_object_dtype(gdf_group[col].dtype) or pd.api.types.is_string_dtype(gdf_group[col].dtype))):
-                        converted_val = convert_to_coded_value(col, val, value_maps, "PN_Gruppe")
+                    if (pd.api.types.is_object_dtype(gdf_group[col].dtype) or pd.api.types.is_string_dtype(gdf_group[col].dtype)):
+                        if col != "ung_Nummer_Chbx":  # Überspringe Boolean-Spalten
+                            converted_val = convert_to_coded_value(col, val, value_maps, "PN_Gruppe")
 
                     # Konvertiere zum richtigen Datentyp
                     try:

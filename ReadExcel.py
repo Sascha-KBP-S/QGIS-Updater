@@ -215,15 +215,14 @@ def bool_to_int(value) -> "int | pd._libs.missing.NAType":
     return 1 if bool(value) else 0
 
 
-def bool_to_string(value) -> str:
-    """Konvertiert Boolean/String zu 'false' oder 'true'. Leere Werte -> 'false'."""
+def bool_to_string(value) -> "bool | None":
+    """Konvertiert Boolean/String zu True (=ungültig) oder None. Leere/False Werte -> None."""
     if pd.isna(value) or value == "":
-        return "false"
+        return None
     if isinstance(value, str):
         normalized = value.strip().lower()
-        if normalized in {"false", "0", "nein", "no", "n"}:
-            return "false"
+        if normalized in {"false", "0", "nein", "no", "n", "none", "null"}:
+            return None
         if normalized in {"true", "1", "ja", "yes", "y"}:
-            return "true"
-    return "true" if bool(value) else "false"
-
+            return True  # True = "ungültig"
+    return bool(value) if bool(value) else None
