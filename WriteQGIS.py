@@ -74,7 +74,21 @@ def convert_to_coded_value(column_name, value, value_maps, layer_name):
 
 
 # Hilfsfunktion: Werte auf Ziel-Datentyp casten, ohne unnötige Aufwertung
-def cast_scalar_to_dtype(value, target_dtype):
+def cast_scalar_to_dtype(value, target_dtype, column_name=None):
+    # Spezialbehandlung für ung_Nummer_Chbx: 'true'/'false' Strings, leere Werte -> 'false'
+    if column_name == "ung_Nummer_Chbx":
+        if pd.isna(value) or (isinstance(value, str) and value.strip() == ""):
+            return "false"
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"false", "0", "nein", "no", "n"}:
+                return "false"
+            if normalized in {"true", "1", "ja", "yes", "y"}:
+                return "true"
+            return normalized
+        return "true" if bool(value) else "false"
+
+    # Für alle anderen Spalten: NULL bei NaN/None
     if pd.isna(value):
         return None
 
@@ -120,14 +134,20 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
         probes_list: Liste der zu aktualisierenden Probennummern
     """
 
-    bool_columns = {"ung_Nummer_Chbx", "Reparatur"}
+    # Spalten die als String gespeichert werden sollen
+    bool_as_string_columns = {"ung_Nummer_Chbx"}
+    bool_as_int_columns = {"Reparatur"}
 
-    # Stelle sicher, dass Bool-Spalten als nullable Int64 geführt werden
-    for col in bool_columns:
+    # Stelle sicher, dass Bool-Spalten korrekt getyped werden
+    for col in bool_as_int_columns:
         if col in gdf_prt.columns:
             gdf_prt[col] = pd.to_numeric(gdf_prt[col], errors="coerce").astype(pd.Int64Dtype())
         if col in gdf_group.columns:
             gdf_group[col] = pd.to_numeric(gdf_group[col], errors="coerce").astype(pd.Int64Dtype())
+
+    # Stelle sicher, dass pue_date als datetime geführt wird
+    if "pue_date" in gdf_prt.columns:
+        gdf_prt["pue_date"] = pd.to_datetime(gdf_prt["pue_date"], errors="coerce")
 
     # Backup erstellen
     safe_copy(filepath)
@@ -175,19 +195,20 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
                     # Wert ist nicht leer -> aktualisieren
                     # Value Map nur bei Textspalten anwenden
                     converted_val = val
-                    if pd.api.types.is_object_dtype(gdf_prt[col].dtype) or pd.api.types.is_string_dtype(gdf_prt[col].dtype):
+                    if (col not in bool_as_string_columns and
+                        (pd.api.types.is_object_dtype(gdf_prt[col].dtype) or pd.api.types.is_string_dtype(gdf_prt[col].dtype))):
                         converted_val = convert_to_coded_value(col, val, value_maps, "PN_Protokoll")
 
                     # Konvertiere zum richtigen Datentyp
                     try:
-                        target_dtype = pd.Int64Dtype() if col in bool_columns else gdf_prt[col].dtype
-                        gdf_prt.at[gpkg_idx, col] = cast_scalar_to_dtype(converted_val, target_dtype)
+                        target_dtype = pd.Int64Dtype() if col in bool_as_int_columns else gdf_prt[col].dtype
+                        gdf_prt.at[gpkg_idx, col] = cast_scalar_to_dtype(converted_val, target_dtype, column_name=col)
                     except (ValueError, TypeError):
                         # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
                         pass
                 else:
                     # Wert ist leer -> setze explizit NULL in GPKG
-                    gdf_prt.at[gpkg_idx, col] = pd.NA if col in bool_columns else None
+                    gdf_prt.at[gpkg_idx, col] = pd.NA if col in bool_as_int_columns else None
 
     # Aktualisiere PN_Gruppe
     print("Aktualisiere PN_Gruppe...")
@@ -225,29 +246,24 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
                     # Wert ist nicht leer -> aktualisieren
                     # Value Map nur bei Textspalten anwenden
                     converted_val = val
-                    if pd.api.types.is_object_dtype(gdf_group[col].dtype) or pd.api.types.is_string_dtype(gdf_group[col].dtype):
+                    if (col not in bool_as_string_columns and
+                        (pd.api.types.is_object_dtype(gdf_group[col].dtype) or pd.api.types.is_string_dtype(gdf_group[col].dtype))):
                         converted_val = convert_to_coded_value(col, val, value_maps, "PN_Gruppe")
 
                     # Konvertiere zum richtigen Datentyp
                     try:
-                        target_dtype = pd.Int64Dtype() if col in bool_columns else gdf_group[col].dtype
-                        gdf_group.at[gpkg_idx, col] = cast_scalar_to_dtype(converted_val, target_dtype)
+                        target_dtype = pd.Int64Dtype() if col in bool_as_int_columns else gdf_group[col].dtype
+                        gdf_group.at[gpkg_idx, col] = cast_scalar_to_dtype(converted_val, target_dtype, column_name=col)
                     except (ValueError, TypeError):
                         # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
                         pass
                 else:
                     # Wert ist leer -> setze explizit NULL in GPKG
-                    gdf_group.at[gpkg_idx, col] = pd.NA if col in bool_columns else None
+                    gdf_group.at[gpkg_idx, col] = pd.NA if col in bool_as_int_columns else None
 
     # Schreibe Layers zurück mit Geopandas
     print("Schreibe GPKG...")
 
-    # Bool-Spalten vor dem Schreiben nochmals auf Int64 fixieren
-    for col in bool_columns:
-        if col in gdf_prt.columns:
-            gdf_prt[col] = gdf_prt[col].astype(pd.Int64Dtype())
-        if col in gdf_group.columns:
-            gdf_group[col] = gdf_group[col].astype(pd.Int64Dtype())
 
     try:
         # Konvertiere zu GeoDataFrame falls nötig
