@@ -75,8 +75,8 @@ def convert_to_coded_value(column_name, value, value_maps, layer_name):
 
 # Hilfsfunktion: Werte auf Ziel-Datentyp casten, ohne unnötige Aufwertung
 def cast_scalar_to_dtype(value, target_dtype, column_name=None):
-    # Spezialbehandlung für ung_Nummer_Chbx: True (=ungültig) oder None (=valid/falsch)
-    if column_name == "ung_Nummer_Chbx":
+    # Spezialbehandlung für Boolean-Spalten: True oder None
+    if column_name in {"ung_Nummer_Chbx", "Reparatur"}:
         if pd.isna(value):
             return None
         if isinstance(value, str):
@@ -85,7 +85,6 @@ def cast_scalar_to_dtype(value, target_dtype, column_name=None):
                 return None
             if normalized in {"true", "1", "ja", "yes", "y"}:
                 return True
-            # Wenn weder True noch False, dann None
             return None
         # Konvertiere zu echtem Python bool
         return bool(value) if value else None
@@ -94,18 +93,35 @@ def cast_scalar_to_dtype(value, target_dtype, column_name=None):
     if pd.isna(value):
         return None
 
-    if pd.api.types.is_bool_dtype(target_dtype):
-        if isinstance(value, (int, float, np.integer, np.floating)):
-            return bool(int(value))
-        return bool(value)
+    # Datetime-Spalten: ZUERST überprüfen, bevor andere Konvertierungen
+    # Wenn value bereits datetime ist, behalte es als pd.Timestamp
+    if isinstance(value, (pd.Timestamp, np.datetime64)) or \
+       pd.api.types.is_datetime64_any_dtype(type(value)):
+        if isinstance(value, pd.Timestamp):
+            dt_val = value
+        else:
+            dt_val = pd.Timestamp(value)
+        if pd.isna(dt_val):
+            return None
+        # Entferne Timezone falls vorhanden
+        if dt_val.tzinfo is not None:
+            dt_val = dt_val.tz_localize(None)
+        return dt_val
 
+    # Wenn target_dtype datetime ist, konvertiere zu pd.Timestamp
     if pd.api.types.is_datetime64_any_dtype(target_dtype):
         dt_val = pd.to_datetime(value, errors="coerce")
         if pd.isna(dt_val):
             return None
-        if hasattr(dt_val, "tz_localize") and dt_val.tzinfo is not None:
+        # Entferne Timezone falls vorhanden
+        if hasattr(dt_val, 'tz') and dt_val.tz is not None:
             dt_val = dt_val.tz_localize(None)
         return dt_val
+
+    if pd.api.types.is_bool_dtype(target_dtype):
+        if isinstance(value, (int, float, np.integer, np.floating)):
+            return bool(int(value))
+        return bool(value)
 
     if isinstance(target_dtype, pd.Float32Dtype) or str(target_dtype) == "Float32":
         try:
@@ -136,20 +152,19 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
         probes_list: Liste der zu aktualisierenden Probennummern
     """
 
-    # Spalten die als String gespeichert werden sollen
-    bool_as_string_columns = {}  # Leer - ung_Nummer_Chbx wird nun als echtes Boolean gespeichert
-    bool_as_int_columns = {"Reparatur"}
+    # Boolean-Spalten definieren
+    bool_as_boolean_columns = {"ung_Nummer_Chbx", "Reparatur"}
 
-    # Stelle sicher, dass Bool-Spalten korrekt getyped werden
-    for col in bool_as_int_columns:
+    # Stelle sicher, dass Boolean-Spalten als BooleanDtype gespeichert werden
+    for col in bool_as_boolean_columns:
         if col in gdf_prt.columns:
-            gdf_prt[col] = pd.to_numeric(gdf_prt[col], errors="coerce").astype(pd.Int64Dtype())
+            gdf_prt[col] = gdf_prt[col].astype(pd.BooleanDtype())
         if col in gdf_group.columns:
-            gdf_group[col] = pd.to_numeric(gdf_group[col], errors="coerce").astype(pd.Int64Dtype())
+            gdf_group[col] = gdf_group[col].astype(pd.BooleanDtype())
 
-    # Stelle sicher, dass ung_Nummer_Chbx als BooleanDtype gespeichert wird
-    if "ung_Nummer_Chbx" in gdf_prt.columns:
-        gdf_prt["ung_Nummer_Chbx"] = gdf_prt["ung_Nummer_Chbx"].astype(pd.BooleanDtype())
+    # Stelle sicher, dass pue_date als datetime gespeichert wird
+    if "pue_date" in gdf_prt.columns:
+        gdf_prt["pue_date"] = pd.to_datetime(gdf_prt["pue_date"], errors="coerce")
 
     # Backup erstellen
     safe_copy(filepath)
@@ -203,14 +218,14 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
 
                     # Konvertiere zum richtigen Datentyp
                     try:
-                        target_dtype = pd.Int64Dtype() if col in bool_as_int_columns else gdf_prt[col].dtype
+                        target_dtype = gdf_prt[col].dtype
                         gdf_prt.at[gpkg_idx, col] = cast_scalar_to_dtype(converted_val, target_dtype, column_name=col)
                     except (ValueError, TypeError):
                         # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
                         pass
                 else:
                     # Wert ist leer -> setze explizit NULL in GPKG
-                    gdf_prt.at[gpkg_idx, col] = pd.NA if col in bool_as_int_columns else None
+                    gdf_prt.at[gpkg_idx, col] = pd.NA if col in bool_as_boolean_columns else None
 
     # Aktualisiere PN_Gruppe
     print("Aktualisiere PN_Gruppe...")
@@ -254,14 +269,14 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
 
                     # Konvertiere zum richtigen Datentyp
                     try:
-                        target_dtype = pd.Int64Dtype() if col in bool_as_int_columns else gdf_group[col].dtype
+                        target_dtype = gdf_group[col].dtype
                         gdf_group.at[gpkg_idx, col] = cast_scalar_to_dtype(converted_val, target_dtype, column_name=col)
                     except (ValueError, TypeError):
                         # Bei Konvertierungsfehlern: ursprünglichen Wert behalten
                         pass
                 else:
                     # Wert ist leer -> setze explizit NULL in GPKG
-                    gdf_group.at[gpkg_idx, col] = pd.NA if col in bool_as_int_columns else None
+                    gdf_group.at[gpkg_idx, col] = pd.NA if col in bool_as_boolean_columns else None
 
     # Schreibe Layers zurück mit Geopandas
     print("Schreibe GPKG...")
