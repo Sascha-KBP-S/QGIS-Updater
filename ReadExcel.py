@@ -61,7 +61,7 @@ def append_columns(df_src: DataFrame):
         "Nummer": pd.to_numeric(df_src.iloc[:, col_index("C")], errors="coerce").astype(pd.Int64Dtype()),
         "Nummer_Bezeichnung": df_src.iloc[:, col_index("D")].fillna("").astype(str),
         "Gruppe_Nummer": pd.to_numeric(df_src.iloc[:, col_index("E")], errors="coerce").astype(pd.Int64Dtype()),
-        "ung_Nummer_Chbx": df_src.iloc[:, col_index("F")].apply(bool_to_float).astype("boolean"),
+        "ung_Nummer_Chbx": df_src.iloc[:, col_index("F")].apply(bool_to_int).astype(pd.Int64Dtype()),
         "ung_Nummer": pd.to_numeric(df_src.iloc[:, col_index("G")], errors="coerce").astype(float),
 
         # P-Nr.
@@ -201,8 +201,14 @@ def append_columns(df_src: DataFrame):
     return df
 
 
-def bool_to_float(value) -> bool:
-    """Konvertiert Boolean/String zu float (1.0 = true, 0.0 = false) für GPKG-Kompatibilität"""
-    if pd.isna(value) or value == "" or value == False or value == "false" or value == "False" or value == 0:
-        return False
-    return True
+def bool_to_int(value) -> "int | pd._libs.missing.NAType":
+    """Konvertiert Boolean/String zu nullable 0/1 (1 = true, 0 = false)."""
+    if pd.isna(value) or value == "":
+        return pd.NA
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"false", "0", "nein", "no", "n"}:
+            return 0
+        if normalized in {"true", "1", "ja", "yes", "y"}:
+            return 1
+    return 1 if bool(value) else 0

@@ -52,42 +52,116 @@ print("\n" + "="*80)
 print("DATENTRANSFER ABGESCHLOSSEN")
 print("="*80)
 
-# Debug: Überprüfe die geschriebenen Daten für Probe 326
-print("\n" + "="*80)
-print("DEBUG: Überprüfung Probe 326 in geschriebener GPKG")
-print("="*80)
+# Debug: Vergleiche Excel-Daten mit geschriebener GPKG für eine Probe
+probe = 44
 
-try:
-    # Lese die Layers neu ein
-    gdf_prt_check = read_layer(qg_path, "PN_Protokoll")
-    gdf_group_check = read_layer(qg_path, "PN_Gruppe")
+if probe:
+    print("\n" + "="*80)
+    print(f"DEBUG: VERGLEICH Excel ↔ GPKG für Probe {probe}")
+    print("="*80)
 
-    # Suche Probe 326 in PN_Protokoll
-    row_prt = gdf_prt_check.loc[gdf_prt_check["Nummer"] == 326]
-    if not row_prt.empty:
-        print("\n[DEBUG] PN_Protokoll - Probe 326:")
-        print(row_prt.to_string(index=False))
-    else:
-        print("\n[DEBUG] Probe 326 nicht in PN_Protokoll gefunden")
+    try:
+        # Lese die Layers neu ein
+        gdf_prt_check = read_layer(qg_path, "PN_Protokoll")
+        gdf_group_check = read_layer(qg_path, "PN_Gruppe")
 
-    # Suche Probe 326 in PN_Gruppe (über Gruppe_Nummer)
-    probe_326_data = df.loc[df["Nummer"] == 326]
-    if not probe_326_data.empty:
-        grp_num = probe_326_data.iloc[0]["Gruppe_Nummer"]
-        if pd.notna(grp_num):
-            row_group = gdf_group_check.loc[gdf_group_check["Gruppe_Nummer"] == grp_num]
-            if not row_group.empty:
-                print("\n[DEBUG] PN_Gruppe - Gruppe_Nummer", int(grp_num), "(für Probe 326):")
-                print(row_group.to_string(index=False))
-            else:
-                print("\n[DEBUG] Gruppe_Nummer", int(grp_num), "nicht in PN_Gruppe gefunden")
+        # Excel-Daten für diese Probe
+        excel_row = df.loc[df["Nummer"] == probe]
+
+        if excel_row.empty:
+            print(f"\n[ERROR] Probe {probe} nicht im Excel-DataFrame gefunden!")
         else:
-            print("\n[DEBUG] Probe 326 hat keine Gruppe_Nummer")
-    else:
-        print("\n[DEBUG] Probe 326 nicht im Excel-DataFrame gefunden")
+            excel_data = excel_row.iloc[0]
 
-except Exception as e:
-    print(f"\n[ERROR] Fehler beim Debug-Check: {e}")
-    import traceback
-    traceback.print_exc()
+            # Hilfsfunktion für Werte-Vergleich
+            def values_equal(v1, v2):
+                # Beide sind NaN/None/NA
+                if pd.isna(v1) and pd.isna(v2):
+                    return True
+                # Beide sind None
+                if v1 is None and v2 is None:
+                    return True
+                # Einer ist NaN, der andere nicht
+                if pd.isna(v1) or pd.isna(v2):
+                    return False
+                # Vergleiche die Werte
+                return v1 == v2
+
+            # ========== PN_PROTOKOLL Vergleich ==========
+            print(f"\n{'─'*80}")
+            print(f"LAYER: PN_Protokoll")
+            print(f"{'─'*80}")
+
+            gpkg_prt_row = gdf_prt_check.loc[gdf_prt_check["Nummer"] == probe]
+
+            if gpkg_prt_row.empty:
+                print(f"[WARNING] Probe {probe} nicht in PN_Protokoll gefunden!")
+            else:
+                gpkg_prt_data = gpkg_prt_row.iloc[0]
+
+                # Alle Spalten aus Excel-DataFrame, die auch in GPKG existieren
+                prt_columns = [col for col in excel_data.index if col in gpkg_prt_data.index]
+
+                identical_count = 0
+                diff_count = 0
+
+                print("\n  Spaltenvergleich:")
+                for col in sorted(prt_columns):
+                    excel_val = excel_data[col]
+                    gpkg_val = gpkg_prt_data[col]
+
+                    if values_equal(excel_val, gpkg_val):
+                        identical_count += 1
+                        print(f"  ✓ {col:30s} | {repr(excel_val):50s}")
+                    else:
+                        diff_count += 1
+                        print(f"  ✗ {col:30s} | Excel: {repr(excel_val):35s} | GPKG: {repr(gpkg_val)}")
+
+                print(f"\n  Zusammenfassung: {identical_count} identisch ✓, {diff_count} unterschiedlich ✗")
+
+            # ========== PN_GRUPPE Vergleich ==========
+            print(f"\n{'─'*80}")
+            print(f"LAYER: PN_Gruppe")
+            print(f"{'─'*80}")
+
+            grp_num = excel_data.get("Gruppe_Nummer")
+
+            if pd.isna(grp_num):
+                print(f"[INFO] Probe {probe} hat keine Gruppe_Nummer")
+            else:
+                gpkg_grp_row = gdf_group_check.loc[gdf_group_check["Gruppe_Nummer"] == grp_num]
+
+                if gpkg_grp_row.empty:
+                    print(f"[WARNING] Gruppe_Nummer {grp_num} nicht in PN_Gruppe gefunden!")
+                else:
+                    gpkg_grp_data = gpkg_grp_row.iloc[0]
+
+                    # Alle Spalten aus Excel-DataFrame, die auch in GPKG existieren
+                    grp_columns = [col for col in excel_data.index if col in gpkg_grp_data.index]
+
+                    identical_count = 0
+                    diff_count = 0
+
+                    print("\n  Spaltenvergleich:")
+                    for col in sorted(grp_columns):
+                        excel_val = excel_data[col]
+                        gpkg_val = gpkg_grp_data[col]
+
+                        if values_equal(excel_val, gpkg_val):
+                            identical_count += 1
+                            print(f"  ✓ {col:30s} | {repr(excel_val):50s}")
+                        else:
+                            diff_count += 1
+                            print(f"  ✗ {col:30s} | Excel: {repr(excel_val):35s} | GPKG: {repr(gpkg_val)}")
+
+                    print(f"\n  Zusammenfassung: {identical_count} identisch ✓, {diff_count} unterschiedlich ✗")
+
+    except Exception as e:
+        print(f"\n[ERROR] Fehler beim Debug-Check: {e}")
+        import traceback
+        traceback.print_exc()
+
+    print("\n" + "="*80)
+else:
+    print("\n[WARNING] Keine gültige Probennummer zum Testen gefunden")
 
