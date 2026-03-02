@@ -1,14 +1,31 @@
 # Imports
-import time
 import json
-import os
-
-import numpy as np
 import pandas as pd
 from pandas import DataFrame
-from sympy import true, false
+from ExcelUtils import col_index
 
-from ExcelUtils import col_index, config
+ZUSATZINFORMATIONEN = [
+    "Probenmaterial nicht vollständig aufgefangen",
+    "Material wurde stark erwärmt",
+    "Material wurde leicht erwärmt",
+    "Probe war sehr schwer zu gewinnen, Probendose nicht vollständig gefüllt",
+    "Probenahmestelle vor PN vereist",
+    "Probenahmestelle verlegt",
+    "Querkontamination möglich",
+    "Bohrkern zerbrochen",
+    "teilweise Bohrkernverlust",
+    "Verunreinigungen durch Stücke der Schleifplatte"
+]
+
+BESONDERHEITEN = [
+    "keine",
+    "Verfärbung, Flecken",
+    "Korrosion",
+    "Riss in Beschichtung",
+    "lose Beschichtung",
+    "Beschichtung unvollständig erneuert",
+    "PN-Stelle schwer zugänglich"
+]
 
 
 # Value Maps laden
@@ -23,7 +40,7 @@ def load_value_maps(json_path="value_maps.json"):
 
 # PN-Protokoll einlesen, dabei die ersten 4 Zeilen überspringen
 def load_input_data(filepath: str):
-    return pd.read_excel(filepath,sheet_name="PN-Protokoll", skiprows=4)
+    return pd.read_excel(filepath, sheet_name="PN-Protokoll", skiprows=4)
 
 
 # Probenliste definieren (Anzahl gültige Proben)
@@ -116,7 +133,8 @@ def append_columns(df_src: DataFrame):
         "Bauteil_nutzungsart": df_src.iloc[:, col_index("AJ")].fillna("").astype(str),
         "Oberflaechenbeschaffenheit": df_src.iloc[:, col_index("AK")].fillna("").astype(str),
         "Verdacht": df_src.iloc[:, col_index("AL")].fillna("").astype(str),
-        "Besonderheiten_Freitext": df_src.iloc[:, col_index("AM")].fillna("").astype(str),
+        "Besonderheiten_Freitext": df_src.iloc[:, col_index("AM")].fillna("").astype(str).apply(
+            lambda x: remove_duplicates(x, BESONDERHEITEN)),
 
         # Foto-Nr.
         "Foto1": df_src.iloc[:, col_index("AN")].fillna("").astype(str),  # übersicht
@@ -151,7 +169,8 @@ def append_columns(df_src: DataFrame):
         "Ma_Zustand": df_src.iloc[:, col_index("BK")].fillna("").astype(str),
         "Ma_Beschaffenheit": df_src.iloc[:, col_index("BL")].fillna("").astype(str),
         "PN_Verlust": pd.to_numeric(df_src.iloc[:, col_index("BM")], errors="coerce").astype(float),
-        "Zi_Freitext": df_src.iloc[:, col_index("BN")].fillna("").astype(str),
+        "Zi_Freitext": df_src.iloc[:, col_index("BN")].fillna("").astype(str).apply(
+            lambda x: remove_duplicates(x, ZUSATZINFORMATIONEN)),
 
         # Feststoffprobenahme
         "FSPN_dn": pd.to_numeric(df_src.iloc[:, col_index("BO")], errors="coerce").astype(float),
@@ -197,12 +216,8 @@ def append_columns(df_src: DataFrame):
         "pue_empfaenger": df_src.iloc[:, col_index("CR")].fillna("").astype(str),
         "pue_date": pd.to_datetime(df_src.iloc[:, col_index("CS")], errors="coerce"),
 
-
     })
     return df
-
-
-
 
 
 def excel_to_bool(value) -> bool:
@@ -211,3 +226,21 @@ def excel_to_bool(value) -> bool:
         return False
     else:
         return True  # True = "ungültig"
+
+
+def remove_duplicates(string: str, dropdown: list) -> str:
+    if not isinstance(string, str) or not string.strip():
+        return string
+
+    # Sortiere Einträge nach Länge (längste zuerst) um Teiltreffer zu vermeiden
+    sorted_entries = sorted(dropdown, key=len, reverse=True)
+
+    for entry in sorted_entries:
+        if entry in string:
+            if dropdown == BESONDERHEITEN:
+                string = string.replace(f"{entry} /", "")
+
+            if dropdown == ZUSATZINFORMATIONEN:
+                string = string.replace(f"{entry}:", "")
+
+    return string.strip()
