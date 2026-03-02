@@ -27,6 +27,12 @@ BESONDERHEITEN = [
     "PN-Stelle schwer zugänglich"
 ]
 
+BEMERKUNGEN = [
+    "(keine Auswahl)",
+    "Probe geteilt, in folgende Teilproben",
+    "Probe durch Teilung gewonnen aus Probe"
+]
+
 
 # Value Maps laden
 def load_value_maps(json_path="value_maps.json"):
@@ -205,7 +211,8 @@ def append_columns(df_src: DataFrame):
         "AP_ortsdosis": pd.to_numeric(df_src.iloc[:, col_index("CM")], errors="coerce").astype(float),
 
         # Bemerkungen
-        "Bm_Freitxt": df_src.iloc[:, col_index("CN")].fillna("").astype(str),
+        "Bm_Freitxt": df_src.iloc[:, col_index("CN")].fillna("").astype(str).apply(
+            lambda x: remove_duplicates(x, BEMERKUNGEN)),
 
         # Probenehmer
         "PN_team": df_src.iloc[:, col_index("CO")].fillna("").astype(str),
@@ -238,9 +245,15 @@ def remove_duplicates(string: str, dropdown: list) -> str:
     for entry in sorted_entries:
         if entry in string:
             if dropdown == BESONDERHEITEN:
-                string = string.replace(f"{entry} /", "")
+                if string == entry:
+                    string = ""
+                else:
+                    string = string.replace(f"{entry} /", "")
 
             if dropdown == ZUSATZINFORMATIONEN:
+                string = string.replace(f"{entry}:", "")
+
+            if dropdown == BEMERKUNGEN:
                 string = string.replace(f"{entry}:", "")
 
     return string.strip()
