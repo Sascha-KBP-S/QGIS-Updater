@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore", message=".*Non-conformant content.*")
 init_reading()
 
 # Dateipfade zum PN-Protokoll, QGIS-Datenbank
-pn_path = r"G:\_Projekte\Stilllegungsplanung KKB\TP03_RM\VH01_A-CH\02_radProbe\21_GIS_Daten\01_Rad_Daten\Projekt\20260204_PN-Protokol_1bis594_QGIS.xlsm"
+pn_path = r"G:\_Projekte\Stilllegungsplanung KKB\TP03_RM\VH01_A-CH\02_radProbe\21_GIS_Daten\01_Rad_Daten\Projekt\20260306_PN-Protokol_1bis594_QGIS.xlsm"
 qg_path = "resources/pn_protokoll.gpkg"
 
 # Excel Daten einlesen
