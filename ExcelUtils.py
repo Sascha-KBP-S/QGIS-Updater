@@ -1,18 +1,9 @@
 # Imports
-from pathlib import Path
-
-import numpy as np
 import pandas as pd
+import json
 from pandas import DataFrame
+import numpy as np
 
-
-class Global:
-    def __init__(self):
-        self.probes_path = str()
-        self.db_path = str()
-
-
-config = Global()
 
 
 def col_index(col_name: str):
@@ -45,3 +36,46 @@ def format_hyphen(value: float):
         return "-"
     else:
         return value
+
+
+def load_value_maps(json_path="value_maps.json"):
+    """Lädt Value Maps aus JSON."""
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def decode_value(value, column_name, layer_name, value_maps):
+    """
+    Konvertiert einen Index zurück zu seinem String-Wert basierend auf value_maps.
+
+    Returns: String-Wert wenn Index gefunden, sonst Original-Wert
+    """
+    if pd.isna(value) or value is None:
+        return value
+
+    try:
+        # Konvertiere zu int ob es eine Zahl (int, float, numpy) oder String ist
+        if isinstance(value, str):
+            # Versuche String als int zu parsen
+            try:
+                idx = int(value)
+            except ValueError:
+                return value  # Nicht konvertierbar, Original zurückgeben
+        elif isinstance(value, (int, float, np.integer, np.floating)):
+            idx = int(value)
+        else:
+            return value
+
+        col_map = value_maps.get(layer_name, {}).get(column_name, {})
+
+        if col_map:
+            for string_val, idx_val in col_map.items():
+                if int(idx_val) == idx:
+                    return string_val
+    except (ValueError, TypeError, KeyError):
+        pass
+
+    return value

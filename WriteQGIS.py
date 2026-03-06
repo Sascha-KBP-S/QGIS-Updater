@@ -1,5 +1,4 @@
 # Imports
-from os.path import exists
 import pandas as pd
 import geopandas as gpd
 import pathlib
@@ -9,14 +8,14 @@ from datetime import datetime
 import numpy as np
 
 
-# ========== KONSTANTEN ==========
+#  Konstanten
 BOOLEAN_COLUMNS = {"ung_Nummer_Chbx", "Reparatur"}
 DATETIME_COLUMNS = {"pue_date", "Datum", "Datum_Zeit"}
 LAYER_PN_PROTOKOLL = "PN_Protokoll"
 LAYER_PN_GRUPPE = "PN_Gruppe"
 
 
-# ========== VALUE MAPS ==========
+#  Value Mapping laden
 def load_value_maps(json_path="value_maps.json"):
     """Lädt Value Map Definitionen aus einer JSON-Datei."""
     try:
@@ -30,7 +29,7 @@ def load_value_maps(json_path="value_maps.json"):
         return {}
 
 
-# ========== GPKG LESEN ==========
+#  GPKG lesen
 def read_layer(path, layer):
     """Liest einen Layer aus GPKG mit pyogrio Engine."""
     try:
@@ -39,7 +38,7 @@ def read_layer(path, layer):
         return gpd.read_file(path, layer=layer, engine="pyogrio", ignore_geometry=True)
 
 
-# ========== VALUE MAP KONVERTIERUNG ==========
+#  Value Map konvertierung
 def convert_to_coded_value(column_name, value, value_maps, layer_name):
     """
     Konvertiert String-Wert zu Index basierend auf Value Map.
@@ -56,7 +55,7 @@ def convert_to_coded_value(column_name, value, value_maps, layer_name):
     return col_map.get(value_str, value)
 
 
-# ========== DATENTYP-KONVERTIERUNG ==========
+#  Datentyp konvertierung
 def cast_to_target_dtype(value, target_dtype, column_name=None):
     """Konvertiert Wert zum Ziel-Datentyp mit Spezialbehandlung."""
 
@@ -105,7 +104,7 @@ def cast_to_target_dtype(value, target_dtype, column_name=None):
     return value
 
 
-# ========== LAYER AKTUALISIEREN (DRY) ==========
+#  Layer aktualisieren
 def update_layer(df, gdf, probes_list, value_maps, layer_name, match_column="Nummer"):
     """
     Aktualisiert einen Layer (PN_Protokoll oder PN_Gruppe).
@@ -170,7 +169,7 @@ def update_layer(df, gdf, probes_list, value_maps, layer_name, match_column="Num
                 gdf.at[gpkg_idx, col] = pd.NA if col in BOOLEAN_COLUMNS else None
 
 
-# ========== DATENTYPEN VORBEREITEN ==========
+#  Datentypen vorbereiten
 def prepare_datatypes(gdf_prt, gdf_group):
     """Stelle sicher, dass alle Spalten korrekte Datentypen haben."""
     # Boolean-Spalten
@@ -188,7 +187,7 @@ def prepare_datatypes(gdf_prt, gdf_group):
             gdf_group[col] = pd.to_datetime(gdf_group[col], errors="coerce")
 
 
-# ========== LAYER SCHREIBEN ==========
+#  Layer schreiben
 def write_layer(gdf, filepath, layer_name):
     """Schreibt einen Layer in GPKG."""
     try:
@@ -203,7 +202,7 @@ def write_layer(gdf, filepath, layer_name):
         return False
 
 
-# ========== HAUPTFUNKTION ==========
+#  Daten Schreiben
 def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
     """
     Aktualisiert existierende Zeilen in der GPKG mit Geopandas.
@@ -243,7 +242,7 @@ def write_gpkg(df, gdf_group, gdf_prt, filepath, probes_list):
         print("[WARNING] GPKG teilweise aktualisiert - siehe Fehler oben")
 
 
-# ========== BACKUP ==========
+#  Sicherheitskopie des aktuellen Stands erstellen
 def safe_copy(filepath):
     """Erstellt ein Backup der GPKG-Datei mit aktuellem Datum."""
     p = pathlib.Path(filepath)

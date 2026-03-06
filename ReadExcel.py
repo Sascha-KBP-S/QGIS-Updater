@@ -97,7 +97,7 @@ def append_columns(df_src: DataFrame):
         "Datum_Zeit": pd.to_datetime(df_src.iloc[:, col_index("J")], errors="coerce"),
 
         # Probenahmezweck
-        "pn_zweck": df_src.iloc[:, col_index("K")].fillna("").astype(str),
+        "pn_zweck": df_src.iloc[:, col_index("K+")].fillna("").astype(str),
 
         # Auftrag
         "Auftrag": df_src.iloc[:, col_index("L")].fillna("").astype(str),
